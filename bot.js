@@ -3,7 +3,7 @@ const fs = require('fs');
 
 async function main() {
     const debug = true
-	let token = await getToken("juvian", "xxx", '../data.json')
+	let token = await getToken("juvian", "xxx", 'data.json')
 	let socket = new SocketWrapper()
 
     if (debug) {
@@ -27,10 +27,34 @@ async function main() {
 }
 
 class Room {
-	constructor() {
+	constructor(socket) {
         this.players = {}
+        this.activePlayers = {}
         this.spectators = {}
-	}
+        this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => playerLeft(data))
+    }
+    
+    playerLeft = (data) => {
+        //data.
+        //     newHost
+        //     kicked
+        //     player.
+        //            gamePlayerId
+        //
+        delete players[data.player.gamePlayerId]
+    }
+
+    destroy = () => {
+        playerLeftListener.destroy()
+    }
+
+    start = () => {
+        activePlayers = clone(players)
+    }
 }
+
+function clone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+ }
 
 main()
