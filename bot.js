@@ -28,15 +28,19 @@ async function main() {
 }
 
 class Room {
+    //this handles events that concern the room
 	constructor(socket) {
         this.players = {}
         this.activePlayers = {}
         this.spectators = {}
-        this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => playerLeft(data))
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, (data) => playerJoined(data))
+        this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => playerLeft(data))
+        this.playerChangedToSpectatorListener = socket.on(EVENTS.PLAYER_CHANGED_TO_SPECTATOR, (data) => playerChangedToSpectator(data))
+        
         this.spectatorJoinedListener = socket.on(EVENTS.NEW_SPECTATOR, (data) => spectatorJoined(data))
         this.spectatorLeftListener = socket.on(EVENTS.SPECTATOR_LEFT, (data) => spectatorLeft(data))
         this.spectatorChangedToPlayerListener = socket.on(EVENTS.SPECTATOR_CHANGED_TO_PLAYER, (data) => spectatorChangedToPlayer(data))
+        
         this.playerNameChangedListener = socket.on(EVENTS.PLAYER_NAME_CHANGE, (data) => playerNameChanged(data))
         this.spectatorNameChangedListener = socket.on(EVENTS.SPECTATOR_NAME_CHANGE, (data) => spectatorNameChanged(data))
         this.globalNameChangedListener = socket.on(EVENTS.ALL_PLAYER_NAME_CHANGE, (data) => globalNameChanged(data))
@@ -48,8 +52,8 @@ class Room {
         //     kicked
         //     player.
         //            gamePlayerId
-        //
-        delete players[data.player.gamePlayerId]
+        //            name
+        removePlayer(data.player.name)
     }
 
     spectatorLeft = (data) => {
@@ -58,7 +62,16 @@ class Room {
         //     kicked    //boolean
         //     spectator //string
         //
-        delete spectators[data.spectator]
+        removeSpectator(data.spectator)
+        
+    }
+
+    removePlayer = (name) => {
+        delete players[name]
+    }
+
+    removeSpectator = (name) => {
+        delete spectators[name]
     }
 
     playerJoined = (playerData) => {
@@ -117,8 +130,21 @@ class Room {
 
     spectatorChangedToPlayer = (player) => {
         //same kind of data as playerJoined
-        delete spectators[player.name]
+        removeSpectator(player.name)
         playerJoined(player)
+    }
+
+    playerChangedToSpectator = (data) => {
+        //data.
+        //     isHost // boolean
+        //     playerDescription.
+        //                       gamePlayerId // integer
+        //                       name         // string
+        //     spectatorDescription.
+        //                          gamePlayerId // null
+        //                          name         // string
+        removePlayer(data.playerDescription.name)
+        spectatorJoined(data.spectatorDescription)
     }
 
     playerNameChanged = (data) => {
