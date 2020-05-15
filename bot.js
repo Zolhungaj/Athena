@@ -33,6 +33,7 @@ class Room {
         this.players = {}
         this.activePlayers = {}
         this.spectators = {}
+        this.queue = {}
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, (data) => playerJoined(data))
         this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => playerLeft(data))
         this.playerChangedToSpectatorListener = socket.on(EVENTS.PLAYER_CHANGED_TO_SPECTATOR, (data) => playerChangedToSpectator(data))
@@ -40,6 +41,9 @@ class Room {
         this.spectatorJoinedListener = socket.on(EVENTS.NEW_SPECTATOR, (data) => spectatorJoined(data))
         this.spectatorLeftListener = socket.on(EVENTS.SPECTATOR_LEFT, (data) => spectatorLeft(data))
         this.spectatorChangedToPlayerListener = socket.on(EVENTS.SPECTATOR_CHANGED_TO_PLAYER, (data) => spectatorChangedToPlayer(data))
+        
+        this.playerLeftQueueListener = socket.on(EVENTS.PLAYER_LEFT_QUEUE, (data) => playerLeftQueue(data))
+        this.newPlayerInQueueListener = socket.on(EVENTS.NEW_PLAYER_IN_GAME_QUEUE, (data) => newPlayerInQueue(data))
         
         this.playerNameChangedListener = socket.on(EVENTS.PLAYER_NAME_CHANGE, (data) => playerNameChanged(data))
         this.spectatorNameChangedListener = socket.on(EVENTS.SPECTATOR_NAME_CHANGE, (data) => spectatorNameChanged(data))
@@ -145,6 +149,19 @@ class Room {
         //                          name         // string
         removePlayer(data.playerDescription.name)
         spectatorJoined(data.spectatorDescription)
+    }
+
+    playerLeftQueue = ({name}) => {
+        for(let i = queue.length; i > -1 ; i--) {
+            if (queue[i] === name) {
+                this.queue.splice(i, 1)
+            }
+        }
+    }
+
+    newPlayerInQueue = ({name}) => {
+        playerLeftQueue({name: name})
+        queue.push(name)
     }
 
     playerNameChanged = (data) => {
