@@ -2,7 +2,7 @@ const {SocketWrapper, getToken, EVENTS, sleep} = require('./node/amq-api')
 const fs = require('fs');
 
 async function main() {
-    const debug = true
+    const debug = false
     let token = await getToken("xx", "xx", 'data.json')
     console.log(token)
     //return
@@ -44,6 +44,7 @@ class Room {
         this.spectators = {}
         this.queue = {}
         this.socket = socket
+        this.debug = true
 
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, (data) => this.playerJoined(data))
         this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => this.playerLeft(data))
@@ -85,16 +86,16 @@ class Room {
         for(let i = 0; i < data.players.length; i++){
             this.playerJoined(data.players[i])
         }
-        socket.changeToSpectator(data.hostName)
+        this.socket.lobby.changeToSpectator(data.hostName)
     }
 
     avatarChanged = (data) => {
         //data.
         //     gamePlayerId
         //     avatar // same type of data as in playerJoined's avatar
-        for (let name in players){
-            if(player[name].gamePlayerId === data.gamePlayerId){
-                player[name].avatar = data.avatar
+        for (let name in this.players){
+            if(this.players[name].gamePlayerId === data.gamePlayerId){
+                this.players[name].avatar = data.avatar
             }
         }
     }
@@ -103,9 +104,10 @@ class Room {
         //data.
         //     gamePlayerId
         //     ready // boolean
-        for (let name in players){
-            if(player[name].gamePlayerId === data.gamePlayerId){
-                player[name].ready = data.ready
+        for (let name in this.players){
+            if(this.players[name].gamePlayerId === data.gamePlayerId){
+                this.players[name].ready = data.ready
+                console.log(name, "is now", data.ready?"ready":"not ready")
             }
         }
     }
@@ -117,7 +119,7 @@ class Room {
         //     player.
         //            gamePlayerId
         //            name
-        removePlayer(data.player.name)
+        this.removePlayer(data.player.name)
     }
 
     spectatorLeft = (data) => {
@@ -126,16 +128,16 @@ class Room {
         //     kicked    //boolean
         //     spectator //string
         //
-        removeSpectator(data.spectator)
+        this.removeSpectator(data.spectator)
         
     }
 
     removePlayer = (name) => {
-        delete players[name]
+        delete this.players[name]
     }
 
     removeSpectator = (name) => {
-        delete spectators[name]
+        delete this.spectators[name]
     }
 
     playerJoined = (playerData) => {
@@ -173,7 +175,7 @@ class Room {
         if(player.banned) {
             kick(playerData.name)
         }else{
-            players[playerData.name] = player
+            this.players[playerData.name] = player
         }
     }
     
@@ -182,21 +184,22 @@ class Room {
         //          name         // string
         //          gamePlayerId // integer but always null
         //player = database.getSpectator(spectator.name)
+        let player = {name: spectator.name, banned: false}
         if (!player) {
             player = {name: spectator.name, banned: false}
-            database.newSpectator(spectator.name)
+            this.database.newSpectator(spectator.name)
         }
         if(player.banned) {
-            kick(player.name)
+            this.kick(player.name)
         }else{
-            spectators[player.name] = player
+            this.spectators[player.name] = player
         }
     }
 
     spectatorChangedToPlayer = (player) => {
         //same kind of data as playerJoined
-        removeSpectator(player.name)
-        playerJoined(player)
+        this.removeSpectator(player.name)
+        this.playerJoined(player)
     }
 
     playerChangedToSpectator = (data) => {
@@ -208,21 +211,21 @@ class Room {
         //     spectatorDescription.
         //                          gamePlayerId // null
         //                          name         // string
-        removePlayer(data.playerDescription.name)
-        spectatorJoined(data.spectatorDescription)
+        this.removePlayer(data.playerDescription.name)
+        this.spectatorJoined(data.spectatorDescription)
     }
 
     playerLeftQueue = ({name}) => {
-        for(let i = queue.length; i > -1 ; i--) {
-            if (queue[i] === name) {
-                queue.splice(i, 1)
+        for(let i = this.queue.length; i > -1 ; i--) {
+            if (this.queue[i] === name) {
+                this.queue.splice(i, 1)
             }
         }
     }
 
     newPlayerInQueue = ({name}) => {
-        playerLeftQueue({name: name})
-        queue.push(name)
+        this.playerLeftQueue({name: name})
+        this.queue.push(name)
     }
 
     playerNameChanged = (data) => {
@@ -232,16 +235,16 @@ class Room {
         //     gamePlayerId //integer
         const oldName = data.oldName
         const newName = data.newName
-        database.changeName(oldName, newName)
-        if(players[oldName]) {
-            players[oldName].name = newName
-            players[newName] = players[oldName]
-            delete players[oldName]
+        this.database.changeName(oldName, newName)
+        if(this.players[oldName]) {
+            this.players[oldName].name = newName
+            this.players[newName] = this.players[oldName]
+            delete this.players[oldName]
         }
         if(this.activePlayers[oldName]) {
-            activePlayers[oldName].name = newName
-            activePlayers[newName] = activePlayers[oldName]
-            delete activePlayers[oldName]
+            this.activePlayers[oldName].name = newName
+            this.activePlayers[newName] = this.activePlayers[oldName]
+            delete this.activePlayers[oldName]
         }
     }
 
@@ -251,10 +254,10 @@ class Room {
         //     newName //string
         const oldName = data.oldName
         const newName = data.newName
-        database.changeName(oldName, newName)
+        this.database.changeName(oldName, newName)
         if(spectators[oldName]) {
-            spectators[oldName].name = newName
-            spectators[newName] = spectators[oldName]
+            this.spectators[oldName].name = newName
+            this.spectators[newName] = this.spectators[oldName]
             delete spectators[oldName]
         }
     }
@@ -266,7 +269,7 @@ class Room {
         //     newName //string
         const oldName = data.oldName
         const newName = data.newName
-        database.changeName(oldName, newName)
+        this.database.changeName(oldName, newName)
     }
 
     destroy = () => {
@@ -287,7 +290,7 @@ class Room {
     }
 
     start = () => {
-        activePlayers = clone(players)
+        this.activePlayers = clone(this.players)
     }
 }
 
