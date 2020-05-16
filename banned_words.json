@@ -1,0 +1,6 @@
+{
+    "banned_words": [
+        {"regex": "urdad", "replacement": "my father"},
+        {"regex": "urmom", "replacement": "my mother"}
+    ] 
+}
