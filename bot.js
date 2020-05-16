@@ -1,11 +1,14 @@
 const {SocketWrapper, getToken, EVENTS, sleep} = require('node/amq-api')
 const fs = require('fs');
-const { KICKED_FROM_GAME } = require('./node/eventstodo');
 
 async function main() {
     const debug = true
 	let token = await getToken("juvian", "xxx", 'data.json')
-	let socket = new SocketWrapper()
+    let socket = new SocketWrapper()
+    
+    const defaultSettings = JSON.parse(`{"roomName":"Athena Alpha","privateRoom":true,"password":"pass","roomSize":8,"numberOfSongs":20,"modifiers":{"skipGuessing":true,"skipReplay":true,"duplicates":true,"queueing":true,"lootDropping":true},"songSelection":{"advancedOn":false,"standardValue":3,"advancedValue":{"watched":20,"unwatched":0,"random":0}},"showSelection":{"watched":80,"unwatched":20,"random":0},"songType":{"advancedOn":false,"standardValue":{"openings":true,"endings":false,"inserts":false},"advancedValue":{"openings":0,"endings":0,"inserts":0,"random":20}},"guessTime":{"randomOn":false,"standardValue":20,"randomValue":[5,60]},"inventorySize":{"randomOn":false,"standardValue":20,"randomValue":[1,99]},"lootingTime":{"randomOn":false,"standardValue":90,"randomValue":[10,150]},"lives":3,"samplePoint":{"randomOn":true,"standardValue":1,"randomValue":[0,100]},"playbackSpeed":{"randomOn":false,"standardValue":1,"randomValue":[true,true,true,true]},"songDifficulity":{"advancedOn":false,"standardValue":{"easy":true,"medium":true,"hard":true},"advancedValue":[0,100]},"songPopularity":{"advancedOn":false,"standardValue":{"disliked":true,"mixed":true,"liked":true},"advancedValue":[0,100]},"playerScore":{"advancedOn":false,"standardValue":[1,10],"advancedValue":[true,true,true,true,true,true,true,true,true,true]},"animeScore":{"advancedOn":false,"standardValue":[2,10],"advancedValue":[true,true,true,true,true,true,true,true,true]},"vintage":{"standardValue":{"years":[1950,2020],"seasons":[0,3]},"advancedValueList":[]},"type":{"tv":true,"movie":true,"ova":true,"ona":true,"special":true},"genre":[],"tags":[],"gameMode":"Standard"}`)
+
+
 
     if (debug) {
         var listener = socket.on(EVENTS.ALL, (data, listener, fullData) => {
@@ -17,7 +20,10 @@ async function main() {
 
 	await socket.connect(token)
 
+    const theRoom = new Room(socket)
+    await sleep(60000)
 
+    theRoom.destroy()
     if (debug) {
         listener.destroy()
     }
@@ -34,6 +40,8 @@ class Room {
         this.activePlayers = {}
         this.spectators = {}
         this.queue = {}
+        this.socket = socket
+
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, (data) => playerJoined(data))
         this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => playerLeft(data))
         this.playerChangedToSpectatorListener = socket.on(EVENTS.PLAYER_CHANGED_TO_SPECTATOR, (data) => playerChangedToSpectator(data))
@@ -48,6 +56,55 @@ class Room {
         this.playerNameChangedListener = socket.on(EVENTS.PLAYER_NAME_CHANGE, (data) => playerNameChanged(data))
         this.spectatorNameChangedListener = socket.on(EVENTS.SPECTATOR_NAME_CHANGE, (data) => spectatorNameChanged(data))
         this.globalNameChangedListener = socket.on(EVENTS.ALL_PLAYER_NAME_CHANGE, (data) => globalNameChanged(data))
+        
+        this.avatarChangedListener = socket.on(EVENTS.AVATAR_CHANGE, (data) => avatarChanged(data))
+        this.playerReadyChangedListener = socket.on(EVENTS.PLAYER_READY_CHANGE, (data) => playerReadyChanged(data))
+        
+        this.hostGameResponseListener = socket.on(EVENTS.HOST_GAME, (data) => hostGameResponse(data))
+
+    }
+
+    hostGameResponse = (data) => {
+        //data.
+        //     gameId     // integer
+        //     hostName   // string
+        //     inLobby    // boolean
+        //     inQueue    // Array //empty
+        //     players    // Array //contains host
+        //     settings   // Object { roomName: "fds", privateRoom: true, password: "fdsfsdfsdfsdf", … }
+        //     spectators // Array //empty
+        this.players = {}
+        this.activePlayers = {}
+        this.spectators = {}
+        this.queue = {}
+
+        
+        for(let i = 0; i < data.players.length; i++){
+            this.playerJoined(data.players[i])
+        }
+        socket.changeToSpectator(data.hostName)
+    }
+
+    avatarChanged = (data) => {
+        //data.
+        //     gamePlayerId
+        //     avatar // same type of data as in playerJoined's avatar
+        for (let name in players){
+            if(player[name].gamePlayerId === data.gamePlayerId){
+                player[name].avatar = data.avatar
+            }
+        }
+    }
+
+    playerReadyChanged = (data) => {
+        //data.
+        //     gamePlayerId
+        //     ready // boolean
+        for (let name in players){
+            if(player[name].gamePlayerId === data.gamePlayerId){
+                player[name].ready = data.ready
+            }
+        }
     }
     
     playerLeft = (data) => {
@@ -104,11 +161,12 @@ class Room {
         //                             backgroundHori //string/filename
         //                             backgroundVert //string/filename
         //                             outfitName     //string
-        player = database.getPlayer(playerData.name)
+        //player = database.getPlayer(playerData.name)
+        player = playerData
         if (!player) {
-            player = data
-            database.newPlayer(player)
+            player = database.newPlayer(playerData)
         }
+        player.ready = playerData.ready
         if(player.banned) {
             kick(playerData.name)
         }else{
@@ -120,7 +178,7 @@ class Room {
         //spectator.
         //          name         // string
         //          gamePlayerId // integer but always null
-        player = database.getSpectator(spectator.name)
+        //player = database.getSpectator(spectator.name)
         if (!player) {
             player = {name: spectator.name, banned: false}
             database.newSpectator(spectator.name)
@@ -154,7 +212,7 @@ class Room {
     playerLeftQueue = ({name}) => {
         for(let i = queue.length; i > -1 ; i--) {
             if (queue[i] === name) {
-                this.queue.splice(i, 1)
+                queue.splice(i, 1)
             }
         }
     }
@@ -209,8 +267,20 @@ class Room {
     }
 
     destroy = () => {
-        playerLeftListener.destroy()
-        playerJoinedListener.destroy()
+        this.playerJoinedListener.destroy()
+        this.playerLeftListener.destroy()
+        this.playerChangedToSpectatorListener.destroy()
+        this.spectatorJoinedListener.destroy()
+        this.spectatorLeftListener.destroy()
+        this.spectatorChangedToPlayerListener.destroy()
+        this.playerLeftQueueListener.destroy()
+        this.newPlayerInQueueListener.destroy()
+        this.playerNameChangedListener.destroy()
+        this.spectatorNameChangedListener.destroy()
+        this.globalNameChangedListener.destroy()
+        this.avatarChangedListener.destroy()
+        this.playerReadyChangedListener.destroy()
+        this.hostGameResponseListener.destroy()
     }
 
     start = () => {
