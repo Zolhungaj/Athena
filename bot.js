@@ -166,17 +166,35 @@ class Room {
         //                             backgroundHori //string/filename
         //                             backgroundVert //string/filename
         //                             outfitName     //string
-        //{banned, elo} = database.getPlayer(playerData.name)
-        let player = playerData
-        if (!player) {
-            player = database.newPlayer(playerData)
-        }
-        player.ready = playerData.ready
-        if(player.banned) {
-            kick(playerData.name)
+        const player = playerData
+        //const {banned, elo, level, avatar} = this.database.getPlayer(player.name)
+        const {level, avatar} = player
+        const banned = false
+        const elo = 1400
+        if (!level) {
+            player.elo = this.database.newPlayer(player)
+            player.banned = false
         }else{
-            this.players[playerData.name] = player
+            player.banned = banned
+            player.elo = elo
         }
+        if(player.banned) {
+            this.kick(player.name)
+            return
+        }else{
+            this.players[player.name] = player
+        }
+        let changedLevel = false
+        if (player.level !== level){
+            this.database.updateLevel(player.name, player.level)
+            changedLevel = true
+        }
+        let changedAvatar = false
+        if (player.avatar !== avatar){
+            this.database.updateAvatar(player.name, player.avatar)
+            changedAvatar = true
+        }
+        //this.chatEvent.newPlayer(wasSpectator, changedLevel, changedAvatar)
     }
     
     spectatorJoined = (spectator, wasPlayer=false) => {
