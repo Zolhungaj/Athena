@@ -140,7 +140,7 @@ class Room {
         delete this.spectators[name]
     }
 
-    playerJoined = (playerData) => {
+    playerJoined = (playerData, wasSpectator=false) => {
         //playerData.
         //           name          //string, unique
         //           level         //integer
@@ -166,7 +166,7 @@ class Room {
         //                             backgroundHori //string/filename
         //                             backgroundVert //string/filename
         //                             outfitName     //string
-        //player = database.getPlayer(playerData.name)
+        //{banned, elo} = database.getPlayer(playerData.name)
         let player = playerData
         if (!player) {
             player = database.newPlayer(playerData)
@@ -179,7 +179,7 @@ class Room {
         }
     }
     
-    spectatorJoined = (spectator) => {
+    spectatorJoined = (spectator, wasPlayer=false) => {
         //spectator.
         //          name         // string
         //          gamePlayerId // integer but always null
@@ -199,7 +199,7 @@ class Room {
     spectatorChangedToPlayer = (player) => {
         //same kind of data as playerJoined
         this.removeSpectator(player.name)
-        this.playerJoined(player)
+        this.playerJoined(player, true)
     }
 
     playerChangedToSpectator = (data) => {
@@ -212,7 +212,7 @@ class Room {
         //                          gamePlayerId // null
         //                          name         // string
         this.removePlayer(data.playerDescription.name)
-        this.spectatorJoined(data.spectatorDescription)
+        this.spectatorJoined(data.spectatorDescription, true)
     }
 
     playerLeftQueue = ({name}) => {
