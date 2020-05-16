@@ -45,6 +45,7 @@ class Room {
         this.queue = {}
         this.socket = socket
         this.debug = true
+        this.messageQueue = []
 
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, (data) => this.playerJoined(data))
         this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => this.playerLeft(data))
@@ -68,6 +69,39 @@ class Room {
 
     }
 
+    chat = (msg) => {
+        if (!msg) {
+            return
+        }
+        msg = wordCensor(msg)
+        const MESSAGE_LENGTH_LIMIT = 200
+        const words = msg.split(" ")
+        let currentMessage = ""
+        if (words[0].length > MESSAGE_LENGTH_LIMIT) {
+            words.splice(0,1,words[0].slice(0,MESSAGE_LENGTH_LIMIT), words[0].slice(MESSAGE_LENGTH_LIMIT))
+        }
+        currentMessage = words[0] //this is to avoid all messages starting with a space
+        for(let i = 1; i < words.length; i++){
+            if(words[i].length > MESSAGE_LENGTH_LIMIT){
+                let slicepoint = MESSAGE_LENGTH_LIMIT - currentMessage.length - 1
+                words.splice(i,1,words[i].slice(0,slicepoint), words[i].slice(slicepoint))
+            }
+            if(currentMessage.length + 1 + words[i].length > MESSAGE_LENGTH_LIMIT){
+                this.messageQueue.push(currentMessage)
+                currentMessage = words[i]
+            }else{
+                currentMessage += " " + words[i]
+            }
+        }
+        if (currentMessage){
+            this.messageQueue.push(currentMessage)
+        }
+    }
+
+    wordCensor = (msg) => {
+        return msg
+    }
+
     hostGameResponse = (data) => {
         //data.
         //     gameId     // integer
@@ -81,6 +115,7 @@ class Room {
         this.activePlayers = {}
         this.spectators = {}
         this.queue = {}
+        this.messageQueue = []
 
         
         for(let i = 0; i < data.players.length; i++){
@@ -96,6 +131,7 @@ class Room {
         for (let name in this.players){
             if(this.players[name].gamePlayerId === data.gamePlayerId){
                 this.players[name].avatar = data.avatar
+                this.database.updateAvatar(name, data.avatar)
             }
         }
     }
