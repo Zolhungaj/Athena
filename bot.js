@@ -89,7 +89,6 @@ class Room {
         this.activePlayers = {}
         this.spectators = {}
         this.queue = {}
-        this.messageQueue = []
 
         
         for(let i = 0; i < data.players.length; i++){
@@ -106,6 +105,7 @@ class Room {
             if(this.players[name].gamePlayerId === data.gamePlayerId){
                 this.players[name].avatar = data.avatar
                 this.database.updateAvatar(name, data.avatar)
+                this.events.emit("player changed avatar", name, data.avatar)
             }
         }
     }
@@ -206,7 +206,7 @@ class Room {
             this.database.updateAvatar(player.name, player.avatar)
             changedAvatar = true
         }
-        this.events.emit("new player", player, wasSpectator, changedLevel, changedAvatar)
+        this.events.emit("new player", {player, wasSpectator, changedLevel, changedAvatar})
     }
     
     spectatorJoined = (spectator, wasPlayer=false) => {
@@ -223,6 +223,7 @@ class Room {
             this.kick(player.name)
         }else{
             this.spectators[player.name] = player
+            this.events.emit("new spectator", spectator, wasPlayer)
         }
     }
 
@@ -335,6 +336,8 @@ class ChatController {
 
         this.banned_words = []
 
+        this.premadeMessages = {}
+
         fs.readFile("banned_words.js", (err, data) => {
             const banned_words = JSON.parse(data).banned_words
             for(let i = 0; i < banned_words.length; i++){
@@ -343,6 +346,12 @@ class ChatController {
                 this.banned_words.push({regex, replacement})
             }
         })
+
+        fs.readFile("en_UK.js", (err, data) => {
+            this.premadeMessages = JSON.parse(data)
+        })
+
+        events.on("new player", (data) => this.newPlayer(data))
     }
 
     start = () => {
@@ -354,8 +363,8 @@ class ChatController {
         if (!this.run){
             return
         }
-        if(this.messageQueue.length > 0){
-            const msg = this.messageQueue.shift()
+        const msg = this.messageQueue.shift()
+        if(msg) {
             if(this.debug){
                 console.log("chatLoop", "sent message:", msg)
             }
@@ -407,6 +416,25 @@ class ChatController {
             newMsg2 = newMsg
         }
         return newMsg
+    }
+
+    getRandomMessage = (messagename, replacements=[]) => {
+        const arr = this.premadeMessages[messagename]
+        if (arr && arr.length > 0) {
+            const item = arr[Math.floor(Math.random() * arr.length)]
+            for(let i = 0; i < replacements.length; i++) {
+                item = item.replace(new RegExp("&"+(i+1), "g"), replacements[i])
+            }
+            return item
+        }else {
+            return "There appears to be an error in the message storage system for name \"" + messagename + "\""
+        }
+    }
+
+    newPlayer = ({player, wasSpectator, changedLevel, changedAvatar}) => {
+        const name = player.name
+        const level = player.level
+        this.chat(this.getRandomMessage("greeting_player", [player.name]))
     }
 }
 function clone(obj) {
