@@ -25,6 +25,8 @@ async function main() {
 
 	await socket.connect(token)
 
+    const theChat = new ChatController(socket, events, true)
+    theChat.start()
     const theRoom = new Room(socket, events)
     socket.roomBrowser.host(defaultSettings)
     await sleep(60000)
@@ -338,7 +340,7 @@ class ChatController {
 
         this.premadeMessages = {}
 
-        fs.readFile("banned_words.js", (err, data) => {
+        fs.readFile("banned_words.json", (err, data) => {
             const banned_words = JSON.parse(data).banned_words
             for(let i = 0; i < banned_words.length; i++){
                 const regex = new RegExp(banned_words[i].regex, "gi")
@@ -347,7 +349,8 @@ class ChatController {
             }
         })
 
-        fs.readFile("en_UK.js", (err, data) => {
+        fs.readFile("en_UK.json", (err, data) => {
+            console.log(data)
             this.premadeMessages = JSON.parse(data)
         })
 
@@ -377,7 +380,7 @@ class ChatController {
         if (!msg) {
             return
         }
-        msg = wordCensor(msg)
+        msg = this.wordCensor(msg)
         const MESSAGE_LENGTH_LIMIT = 200
         const words = msg.split(" ")
         let currentMessage = ""
@@ -421,7 +424,7 @@ class ChatController {
     getRandomMessage = (messagename, replacements=[]) => {
         const arr = this.premadeMessages[messagename]
         if (arr && arr.length > 0) {
-            const item = arr[Math.floor(Math.random() * arr.length)]
+            let item = arr[Math.floor(Math.random() * arr.length)]
             for(let i = 0; i < replacements.length; i++) {
                 item = item.replace(new RegExp("&"+(i+1), "g"), replacements[i])
             }
