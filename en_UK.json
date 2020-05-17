@@ -96,7 +96,7 @@
     "scorn_admin": [ "Please behave @&1! -_-" ],
     "something": [ "something" ],
     "song": [""],
-    "starting": ["The game will start in &1 seconds."],
+    "starting": ["The game will start in &1 second&2."],
     "stop": ["Shutting down...", "aaaaaaaaAaAaAAaa", "Please..."],
     "system": ["System"],
     "unknown_commmand": [ "Unrecognized command" ],

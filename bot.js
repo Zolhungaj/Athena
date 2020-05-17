@@ -32,7 +32,12 @@ async function main() {
     socket.roomBrowser.host(defaultSettings)
     await sleep(30000)
     theRoom.start()
-    await sleep(60000)
+    let stillon = true
+    events.on("terminate", () => {stillon = false})
+    while(stillon){
+        events.emit("tick")
+        await sleep(1000)
+    }
 
     theRoom.destroy()
     if (debug) {
@@ -54,6 +59,9 @@ class Room {
         this.socket = socket
         this.debug = true
         this.events = events
+        this.target = 45
+        this.counter = this.target
+        this.time = 0
 
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, (data) => this.playerJoined(data))
         this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => this.playerLeft(data))
@@ -76,12 +84,70 @@ class Room {
         this.hostGameResponseListener = socket.on(EVENTS.HOST_GAME, (data) => this.hostGameResponse(data))
 
         this.noPlayersListener = socket.on(EVENTS.QUIZ_NO_PLAYERS, () => this.roomClosed()) //haha not implemented
-        this.gameClosedListener = socket.on(EVENTS.GAME_CLOSED, (data) => this.roomClosed(data)) 
+        this.gameClosedListener = socket.on(EVENTS.GAME_CLOSED, (data) => this.roomClosed(data))
+
+        events.on("tick", () => this.tick())
 
     }
 
     chat = (msg) => {
-        this.events.emit("")
+        this.events.emit("chat", msg)
+    }
+
+    autoChat = (msg, replacements=[]) => {
+        this.events.emit("auto chat", msg, replacements)
+    }
+
+    tick = () => {
+        if (Object.keys(this.players).length > 0){
+            if(this.counter <= 0){
+                let canStart = true
+                let offenders = []
+                for(let name in this.players){
+                    if(!this.players[name].ready) {
+                        offenders.push(name)
+                        canStart = false
+                    }
+                }
+                if (canStart){
+                    this.start()
+                }else {
+                    if(this.counter === 0){
+                        const p = "@" + offenders.join(" @")
+                        this.autoChat("get_ready")
+                        this.chat(p)
+                    }else if(this.counter > -10) {
+                        this.chat(this.counter+10 + "")
+                    }else if(this.counter === -10){
+                        for(let i = 0; i < offenders.length; i++){
+                            this.forceToSpectator(offenders[i])
+                        }
+                    }else if(this.counter > -20) {
+                        this.chat(this.counter+20 + "!")
+                    }else {
+                        for(let i = 0; i < offenders.length; i++){
+                            this.forceToSpectator(offenders[i])
+                        }
+                        this.start()
+                    }
+                }
+            }else {
+                if(this.counter % 10 === 0 || this.counter < 10) {
+                    this.autoChat("starting", [this.counter, this.counter===1?"":"s"])
+                }
+            }
+            this.counter--
+        }else{
+            if(this.time % 100 === 0){
+                this.autoChat("idle")
+            }
+            this.counter = this.target
+        }
+        this.time++
+    }
+
+    forceToSpectator = (name) => {
+        this.socket.lobby.changeToSpectator(name)
     }
 
     hostGameResponse = (data) => {
@@ -367,6 +433,8 @@ class ChatController {
         events.on("new player", (data) => this.newPlayer(data))
         //events.on("early end", (data) => this.autoChat("early_end"))
         events.on("auto chat", (name, replacements=[]) => this.autoChat(name,replacements))
+        events.on("chat", (msg) => this.chat(msg))
+        events.on("terminate", () => {this.autoChat("shutting_down")})
 
         this.noSongsListener = socket.on(EVENTS.QUIZ_NO_SONGS, () => this.autoChat("no_songs"))
     }
@@ -436,7 +504,7 @@ class ChatController {
     }
 
     autoChat(messagename, replacements=[]){
-        this.chat(getRandomMessage(messagename, replacements))
+        this.chat(this.getRandomMessage(messagename, replacements))
     }
 
     getRandomMessage = (messagename, replacements=[]) => {
@@ -456,6 +524,21 @@ class ChatController {
         const name = player.name
         const level = player.level
         this.autoChat("greeting_player", [player.name])
+    }
+}
+
+class ChatMonitor {
+    constructor(socket, events) {
+        this.socket = socket
+        this.events = events
+    }
+
+    kick(name, reason) {
+
+    }
+
+    ban(name, reason) {
+
     }
 }
 
