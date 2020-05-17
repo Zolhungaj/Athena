@@ -2,9 +2,10 @@ const {SocketWrapper, getToken, EVENTS, sleep} = require('./node/amq-api')
 const EventEmitter = require("events")
 
 const fs = require('fs');
+const { threadId } = require('worker_threads');
 
 async function main() {
-    const debug = false
+    const debug = true
     const events = new EventEmitter()
     let token = await getToken("xx", "xx", 'data.json')
     console.log(token)
@@ -18,8 +19,8 @@ async function main() {
     if (debug) {
         var listener = socket.on(EVENTS.ALL, (data, listener, fullData) => {
             console.log(data)
-            console.log(listener)
-            console.log(fullData)
+            //console.log(listener)
+            //console.log(fullData)
         })
     }
 
@@ -29,6 +30,8 @@ async function main() {
     theChat.start()
     const theRoom = new Room(socket, events)
     socket.roomBrowser.host(defaultSettings)
+    await sleep(30000)
+    theRoom.start()
     await sleep(60000)
 
     theRoom.destroy()
@@ -71,6 +74,9 @@ class Room {
         this.playerReadyChangedListener = socket.on(EVENTS.PLAYER_READY_CHANGE, (data) => this.playerReadyChanged(data))
         
         this.hostGameResponseListener = socket.on(EVENTS.HOST_GAME, (data) => this.hostGameResponse(data))
+
+        this.noPlayersListener = socket.on(EVENTS.QUIZ_NO_PLAYERS, () => this.roomClosed()) //haha not implemented
+        this.gameClosedListener = socket.on(EVENTS.GAME_CLOSED, (data) => this.roomClosed(data)) 
 
     }
 
@@ -320,10 +326,14 @@ class Room {
         this.avatarChangedListener.destroy()
         this.playerReadyChangedListener.destroy()
         this.hostGameResponseListener.destroy()
+        this.noPlayersListener.destroy()
+        this.gameClosedListener.destroy()
     }
 
     start = () => {
         this.activePlayers = clone(this.players)
+        this.socket.lobby.start()
+        this.events.emit("game start", this.activePlayers)
     }
 }
 
@@ -355,6 +365,10 @@ class ChatController {
         })
 
         events.on("new player", (data) => this.newPlayer(data))
+        //events.on("early end", (data) => this.autoChat("early_end"))
+        events.on("auto chat", (name, replacements=[]) => this.autoChat(name,replacements))
+
+        this.noSongsListener = socket.on(EVENTS.QUIZ_NO_SONGS, () => this.autoChat("no_songs"))
     }
 
     start = () => {
@@ -421,6 +435,10 @@ class ChatController {
         return newMsg
     }
 
+    autoChat(messagename, replacements=[]){
+        this.chat(getRandomMessage(messagename, replacements))
+    }
+
     getRandomMessage = (messagename, replacements=[]) => {
         const arr = this.premadeMessages[messagename]
         if (arr && arr.length > 0) {
@@ -437,7 +455,61 @@ class ChatController {
     newPlayer = ({player, wasSpectator, changedLevel, changedAvatar}) => {
         const name = player.name
         const level = player.level
-        this.chat(this.getRandomMessage("greeting_player", [player.name]))
+        this.autoChat("greeting_player", [player.name])
+    }
+}
+
+class Game {
+    constructor(socket, events){
+        this.socket = socket
+        this.events = events
+
+        this.active = false
+        this.players = {}
+
+        
+
+        events.on("game start", (players) => this.start(players))
+        this.noSongsListener = socket.on(EVENTS.QUIZ_NO_SONGS, () => this.startFailed())
+        this.quizFatalErrorListener = socket.on(EVENTS.QUIZ_FATAL_ERROR, () => this.startFailed())
+        this.quizReturnLobbyResultListener = socket.on(EVENTS.QUIZ_RETURN_LOBBY_VOTE_RESULT, ({passed, reason}) => this.returnLobby(passed, reason))
+        this.quizOverListener = socket.on(EVENTS.QUIZ_OVER, (roomSettings) => this.quizOver(roomSettings))
+        this.quizReadyListener = socket.on(EVENTS.QUIZ_READY, ({numberOfSongs}) => this.quizReady(numberOfSongs))
+    
+        this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => this.playerLeft(data))
+    }
+
+    start(players) {
+        this.players = players
+    }
+
+    quizReady(numberOfSongs) {
+        this.active = true
+    }
+
+    startFailed() {
+        this.players = {}
+        this.active = false
+    }
+
+    returnLobby(passed, reason){
+        if(passed){
+            this.earlyEnd()
+        }
+    }
+    earlyEnd(){
+        this.events.emit("auto chat", "early_end")
+        this.active = false
+        this.events.emit("record game", players)
+    }
+}
+
+class SocialManager {
+    constructor(socket, events){
+        this.socket = socket
+        this.events = events
+        this.friendRequestSentListener = socket.on(EVENTS.FRIEND_REQUEST, () => this.startFailed())
+        this.friendRequestRecievedListener = socket.on(EVENTS.NEW_FRIEND_REQUEST_RECEIVED, ({name}) => socket.social.answerFriendRequest(name, true))
     }
 }
 function clone(obj) {

@@ -52,6 +52,7 @@
     "banned_word": [ "Please do not use such language" ],
     "elo": [ "&1's elo rating is: &2 (&3)" ],
     "exchange_players": [ "Choosing some players to exchange." ],
+    "early_end": [ "game ended early, result recording ceased" ],
     "game_complete": [ "Great work everyone! If you want to train on your missed songs do /missed, and I'll send you a list :)" ],
     "get_ready": [ "Okay guys, time to strap in and get ready!" ],
     "greeting_player": [ "&1 enters the fray!", "Hello, &1, welcome to the room!", "Welcome to the room, &1!"],
