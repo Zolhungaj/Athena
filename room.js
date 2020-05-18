@@ -69,6 +69,7 @@ class Room {
         
 
         events.on("tick", () => this.tick())
+        events.on("forceevent", () => {this.counter = 1})
 
     }
 
@@ -119,7 +120,7 @@ class Room {
                     }
                 }
             }else {
-                if(this.counter % 10 === 0 || this.counter < 10) {
+                if(this.counter % 10 === 0 || this.counter < 5) {
                     this.autoChat("starting", [this.counter, this.counter===1?"":"s"])
                 }
             }

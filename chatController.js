@@ -34,6 +34,7 @@ class ChatController {
         events.on("auto chat", (name, replacements=[]) => this.autoChat(name,replacements))
         events.on("chat", (msg) => this.chat(msg))
         events.on("terminate", () => {this.autoChat("shutting_down")})
+        events.on("setchattiness", (newValue) => {this.chattiness = newValue})
 
         socket.on(EVENTS.ANSWER_RESULTS, (data) => this.answerResults(data))
     }
@@ -142,7 +143,9 @@ class ChatController {
     newPlayer = ({player, wasSpectator, changedLevel, changedAvatar}) => {
         const name = player.name
         const level = player.level
-        this.autoChat("greeting_player", [player.name])
+        if(!wasSpectator){
+            this.autoChat("greeting_player", [player.name])
+        }
     }
 }
 module.exports = {ChatController}

@@ -1,0 +1,7 @@
+{
+    "banned_words": [
+        {"regex": "kickmesenpai", "reason": "asked for it"},
+        {"regex": "robot", "reason": "carbonism"}
+
+    ] 
+}
