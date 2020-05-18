@@ -93,6 +93,7 @@
     "profile_unknown": [ "Unknown profile" ],
     "profile_username": [ "Username: &1" ],
     "profile_wins": [ "Games won: &1" ],
+    "quiz_error": [ "Something went wrong with starting the quiz" ],
     "scorn_admin": [ "Please behave @&1! -_-" ],
     "something": [ "something" ],
     "song": [""],

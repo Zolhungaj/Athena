@@ -12,15 +12,15 @@ async function main() {
     //return
     let socket = new SocketWrapper()
     
-    const defaultSettings = JSON.parse(`{"roomName":"Athena Alpha","privateRoom":true,"password":"pass","roomSize":8,"numberOfSongs":20,"modifiers":{"skipGuessing":true,"skipReplay":true,"duplicates":true,"queueing":true,"lootDropping":true},"songSelection":{"advancedOn":false,"standardValue":3,"advancedValue":{"watched":20,"unwatched":0,"random":0}},"showSelection":{"watched":80,"unwatched":20,"random":0},"songType":{"advancedOn":false,"standardValue":{"openings":true,"endings":false,"inserts":false},"advancedValue":{"openings":0,"endings":0,"inserts":0,"random":20}},"guessTime":{"randomOn":false,"standardValue":20,"randomValue":[5,60]},"inventorySize":{"randomOn":false,"standardValue":20,"randomValue":[1,99]},"lootingTime":{"randomOn":false,"standardValue":90,"randomValue":[10,150]},"lives":3,"samplePoint":{"randomOn":true,"standardValue":1,"randomValue":[0,100]},"playbackSpeed":{"randomOn":false,"standardValue":1,"randomValue":[true,true,true,true]},"songDifficulity":{"advancedOn":false,"standardValue":{"easy":true,"medium":true,"hard":true},"advancedValue":[0,100]},"songPopularity":{"advancedOn":false,"standardValue":{"disliked":true,"mixed":true,"liked":true},"advancedValue":[0,100]},"playerScore":{"advancedOn":false,"standardValue":[1,10],"advancedValue":[true,true,true,true,true,true,true,true,true,true]},"animeScore":{"advancedOn":false,"standardValue":[2,10],"advancedValue":[true,true,true,true,true,true,true,true,true]},"vintage":{"standardValue":{"years":[1950,2020],"seasons":[0,3]},"advancedValueList":[]},"type":{"tv":true,"movie":true,"ova":true,"ona":true,"special":true},"genre":[],"tags":[],"gameMode":"Standard"}`)
+    const defaultSettings = JSON.parse(`{"roomName":"Athena testing","privateRoom":false,"password":"","roomSize":24,"numberOfSongs":20,"modifiers":{"skipGuessing":true,"skipReplay":true,"duplicates":true,"queueing":true,"lootDropping":true},"songSelection":{"advancedOn":false,"standardValue":3,"advancedValue":{"watched":20,"unwatched":0,"random":0}},"showSelection":{"watched":80,"unwatched":20,"random":0},"songType":{"advancedOn":false,"standardValue":{"openings":true,"endings":false,"inserts":false},"advancedValue":{"openings":0,"endings":0,"inserts":0,"random":20}},"guessTime":{"randomOn":false,"standardValue":20,"randomValue":[5,60]},"inventorySize":{"randomOn":false,"standardValue":20,"randomValue":[1,99]},"lootingTime":{"randomOn":false,"standardValue":90,"randomValue":[10,150]},"lives":3,"samplePoint":{"randomOn":true,"standardValue":1,"randomValue":[0,100]},"playbackSpeed":{"randomOn":false,"standardValue":1,"randomValue":[true,true,true,true]},"songDifficulity":{"advancedOn":false,"standardValue":{"easy":true,"medium":true,"hard":true},"advancedValue":[0,100]},"songPopularity":{"advancedOn":false,"standardValue":{"disliked":true,"mixed":true,"liked":true},"advancedValue":[0,100]},"playerScore":{"advancedOn":false,"standardValue":[1,10],"advancedValue":[true,true,true,true,true,true,true,true,true,true]},"animeScore":{"advancedOn":false,"standardValue":[2,10],"advancedValue":[true,true,true,true,true,true,true,true,true]},"vintage":{"standardValue":{"years":[1950,2020],"seasons":[0,3]},"advancedValueList":[]},"type":{"tv":true,"movie":true,"ova":true,"ona":true,"special":true},"genre":[],"tags":[],"gameMode":"Standard"}`)
 
 
 
     if (debug) {
         var listener = socket.on(EVENTS.ALL, (data, listener, fullData) => {
-            console.log(data)
+            //console.log(data)
             //console.log(listener)
-            //console.log(fullData)
+            console.log(fullData)
         })
     }
 
@@ -30,8 +30,6 @@ async function main() {
     theChat.start()
     const theRoom = new Room(socket, events)
     socket.roomBrowser.host(defaultSettings)
-    await sleep(30000)
-    theRoom.start()
     let stillon = true
     events.on("terminate", () => {stillon = false})
     while(stillon){
@@ -55,13 +53,17 @@ class Room {
         this.players = {}
         this.activePlayers = {}
         this.spectators = {}
-        this.queue = {}
+        this.queue = []
         this.socket = socket
         this.debug = true
         this.events = events
-        this.target = 45
+        this.target = 1
         this.counter = this.target
         this.time = 0
+
+        this.ingame = false
+
+        this.gameId = -1
 
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, (data) => this.playerJoined(data))
         this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => this.playerLeft(data))
@@ -86,6 +88,32 @@ class Room {
         this.noPlayersListener = socket.on(EVENTS.QUIZ_NO_PLAYERS, () => this.roomClosed()) //haha not implemented
         this.gameClosedListener = socket.on(EVENTS.GAME_CLOSED, (data) => this.roomClosed(data))
 
+
+        this.quizOverListener = socket.on(EVENTS.QUIZ_OVER, (data) => {
+            //console.log(data)
+            const {players, spectators, inQueue} = data
+            this.players = {}
+            this.activePlayers = {}
+            this.spectators = {}
+            this.counter = this.target
+            this.ingame = false
+            this.queue = []
+            for(let i = 0; i < players.length; i++) {
+                const player = players[i]
+                this.playerJoined(player, true)
+                this.counter--
+            }
+            for(let i = 0; i < spectators.length; i++) {
+                const spectator = spectators[i]
+                this.spectatorJoined(spectator, true)
+            }
+            for(let i = 0; i < inQueue.length; i++){
+                const q = inQueue[i]
+                this.newPlayerInQueue(q)
+            }
+        })
+        
+
         events.on("tick", () => this.tick())
 
     }
@@ -99,17 +127,21 @@ class Room {
     }
 
     tick = () => {
+        if(this.debug){
+            console.log("tick", this.ingame, this.counter, this.time)
+        }
+        if(this.ingame){
+            return
+        }
         if (Object.keys(this.players).length > 0){
             if(this.counter <= 0){
-                let canStart = true
-                let offenders = []
+                const offenders = []
                 for(let name in this.players){
                     if(!this.players[name].ready) {
                         offenders.push(name)
-                        canStart = false
                     }
                 }
-                if (canStart){
+                if (offenders.length === 0){
                     this.start()
                 }else {
                     if(this.counter === 0){
@@ -125,10 +157,11 @@ class Room {
                     }else if(this.counter > -20) {
                         this.chat(this.counter+20 + "!")
                     }else {
-                        for(let i = 0; i < offenders.length; i++){
-                            this.forceToSpectator(offenders[i])
+                        if(offenders.length === Object.keys(this.players).length){
+                            this.counter = this.target
+                        }else{
+                            this.start()
                         }
-                        this.start()
                     }
                 }
             }else {
@@ -162,7 +195,8 @@ class Room {
         this.players = {}
         this.activePlayers = {}
         this.spectators = {}
-        this.queue = {}
+        this.queue = []
+        this.gameId = data.gameId
 
         
         for(let i = 0; i < data.players.length; i++){
@@ -251,6 +285,7 @@ class Room {
         //                             backgroundVert //string/filename
         //                             outfitName     //string
         const player = playerData
+        console.log(playerData)
         //let {banned, elo, level, avatar} = this.database.getPlayer(player.name)
         let {level, avatar} = player
         const banned = false
@@ -400,6 +435,7 @@ class Room {
         this.activePlayers = clone(this.players)
         this.socket.lobby.start()
         this.events.emit("game start", this.activePlayers)
+        this.ingame = true
     }
 }
 
@@ -412,7 +448,9 @@ class ChatController {
         this.run = false
         this.debug = debug
 
-        this.banned_words = []
+        this.chattiness = 100
+
+        this.banned_words = [] //these are words the bot itself are not allowed to say
 
         this.premadeMessages = {}
 
@@ -436,7 +474,27 @@ class ChatController {
         events.on("chat", (msg) => this.chat(msg))
         events.on("terminate", () => {this.autoChat("shutting_down")})
 
-        this.noSongsListener = socket.on(EVENTS.QUIZ_NO_SONGS, () => this.autoChat("no_songs"))
+        socket.on(EVENTS.ANSWER_RESULTS, (data) => this.answerResults(data))
+    }
+
+    answerResults = (data) => {
+        //data.
+        //     players []
+        //     songInfo.
+        //              animeNames.
+        //                         romaji
+        //                         english
+        //              songName
+        //              urlMap.
+        //              type
+        //              typenumber
+        if(Math.random()*100 < this.chattiness) {
+            let animename = data.songInfo.animeNames.romaji
+            if(Math.random()>0.5){
+                animename = data.songInfo.animeNames.english
+            }
+            this.autoChat("answer_reveal", [animename])
+        }
     }
 
     start = () => {
@@ -553,13 +611,23 @@ class Game {
         
 
         events.on("game start", (players) => this.start(players))
-        this.noSongsListener = socket.on(EVENTS.QUIZ_NO_SONGS, () => this.startFailed())
+        this.noSongsListener = socket.on(EVENTS.QUIZ_NO_SONGS, () => this.startFailedNoSongs())
         this.quizFatalErrorListener = socket.on(EVENTS.QUIZ_FATAL_ERROR, () => this.startFailed())
         this.quizReturnLobbyResultListener = socket.on(EVENTS.QUIZ_RETURN_LOBBY_VOTE_RESULT, ({passed, reason}) => this.returnLobby(passed, reason))
-        this.quizOverListener = socket.on(EVENTS.QUIZ_OVER, (roomSettings) => this.quizOver(roomSettings))
+        this.quizOverListener = socket.on(EVENTS.QUIZ_OVER, (data) => this.quizOver(data))
         this.quizReadyListener = socket.on(EVENTS.QUIZ_READY, ({numberOfSongs}) => this.quizReady(numberOfSongs))
     
         this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => this.playerLeft(data))
+
+        this.quizEndResultListener = socket.on(EVENTS.QUIZ_END_RESULT, (data) => this.quizEndResult(data))
+    }
+
+    chat = (msg) => {
+        this.events.emit("chat", msg)
+    }
+
+    autoChat = (msg, replacements=[]) => {
+        this.events.emit("auto chat", msg, replacements)
     }
 
     start(players) {
@@ -570,9 +638,14 @@ class Game {
         this.active = true
     }
 
+    startFailedNoSongs() {
+        this.autoChat("no_songs")
+        this.quizDone()
+    }
+
     startFailed() {
-        this.players = {}
-        this.active = false
+        this.autoChat("quiz_error")
+        this.quizDone()
     }
 
     returnLobby(passed, reason){
@@ -580,10 +653,31 @@ class Game {
             this.earlyEnd()
         }
     }
+
     earlyEnd(){
         this.events.emit("auto chat", "early_end")
+        this.events.emit("record game", this.players)
         this.active = false
-        this.events.emit("record game", players)
+        this.quizDone()
+    }
+
+    quizEndResult(data) {
+        this.active = false
+        this.events.emit("record game", this.players)
+    }
+
+    quizOver({spectators, inLobby, settings, inQueue, hostName, gameId, players}){
+        if(this.active){
+            this.earlyEnd()
+        }else{
+            this.autoChat("game_complete")
+            this.quizDone()
+        }
+    }
+
+    quizDone(){
+        this.players = {}
+        this.events.emit("quiz done")
     }
 }
 
