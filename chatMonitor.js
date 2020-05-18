@@ -7,7 +7,8 @@ class ChatMonitor {
         this.premadeMessages = {}
         this.grudges = [] //players that will be kicked as soon as they rejoin
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, ({name}) => this.onJoin(name))
-        this.spectatorJoinedListener = socket.on(EVENTS.NEW_SPECTATOR, ({name}) => this.onJoin(name))
+        this.handleChatListener = socket.on(EVENTS.NEW_SPECTATOR, ({name}) => this.onJoin(name))
+        this.handleChatListener = socket.on(EVENTS.GAME_CHAT_MESSAGE, (data) => this.handleChat(data))
         this.blacklistedWords = []
 
         fs.readFile("en_UK.json", (err, data) => {
@@ -44,7 +45,7 @@ class ChatMonitor {
 
     kick(name, reason, kicker="System") {
         this.socket.lobby.kick(name)
-        this.grudge.push({name, reason, kicker})
+        this.grudges.push({name, reason, kicker})
 
         const successListener = this.socket.on(EVENTS.PLAYER_LEFT, (data) => {
             if(data.player.name === name && data.kicked){
@@ -57,7 +58,7 @@ class ChatMonitor {
 
     ban(name, reason, kicker="System") {
         this.socket.lobby.kick(name)
-        this.grudge.push({name, reason, kicker})
+        this.grudges.push({name, reason, kicker})
 
         const successListener = this.socket.on(EVENTS.PLAYER_LEFT, (data) => {
             if(data.player.name === name && data.kicked){
@@ -94,7 +95,7 @@ class ChatMonitor {
                 this.autoChat("scorn_admin", [sender])
             }else {
                 this.kick(sender, reason)
-                this.socket.social.report("Verbal Abuse", reason, name)
+                this.socket.social.report("Verbal Abuse", reason, sender)
                 return
             }
         }
@@ -113,7 +114,8 @@ class ChatMonitor {
             case "help":
                 const possibility = this.premadeMessages[("help_"+parts[1]).toLowerCase()]
                 if(possibility){
-                    this.chat(possibility)
+                    console.log(possibility)
+                    this.chat(possibility[0])
                 }else{
                     this.autoChat("help")
                     if(isAdmin){
