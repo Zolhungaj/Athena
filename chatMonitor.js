@@ -1,9 +1,10 @@
 const {SocketWrapper, getToken, EVENTS, sleep} = require('./node/amq-api')
 const fs = require("fs")
 class ChatMonitor {
-    constructor(socket, events) {
+    constructor(socket, events, db) {
         this.socket = socket
         this.events = events
+        this.db = db
         this.premadeMessages = {}
         this.grudges = [] //players that will be kicked as soon as they rejoin
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, ({name}) => this.onJoin(name))
@@ -176,12 +177,12 @@ class ChatMonitor {
             case "elo":
                 if(parts[1]){
                     if(isModerator){
-                        this.autoChat("not_implemented")
+                        this.autoChat("elo", [parts[1], this.db.get_or_create_elo(parts[i]), "cheese"])
                     }else{
                         this.autoChat("permission_denied", [sender])
                     }
                 }else{
-                    this.autoChat("not_implemented")
+                    this.autoChat("elo", [sender, this.db.get_or_create_elo(parts[i]), "cheese"])
                 }
                 break
             case "forceevent":
@@ -221,11 +222,11 @@ class ChatMonitor {
     }
 
     isAdmin(name){
-
+        return this.db.is_administrator(name)
     }
 
     isModerator(name){
-
+        return this.db.is_moderator(name)
     }
 
     isBad = (message) => {
