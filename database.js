@@ -1,11 +1,11 @@
-const sqlite3 = require("sqlite3")
+const sqlite3 = require("sqlite3").verbose()
 
 //this was ported from the previous contest bot, it was originally in python
 
 class Database{
     constructor(database_file){
         this.database_file = database_file
-        this.conn = new sqlite3(database_file).verbose()
+        this.conn = new sqlite3.Database(database_file)
         this.conn.run("PRAGMA foreign_keys = 1")
         this.default_elo = 1400
         const c = this.conn
@@ -135,7 +135,7 @@ class Database{
             NULL,
             (?),
             ?
-            )`, [username.lower(), username])
+            )`, [username.toLowerCase(), username], this.dud)
         }catch(e){
             return null
         }
@@ -146,24 +146,25 @@ class Database{
         if (!username){
             return null
         }
-        username = username.lower()
+        username = username.toLowerCase()
         const result = this.conn.get(`SELECT id FROM player WHERE username=(?)`, [username])
         return result?result.id:null
     }
 
     get_or_create_player_id(username){
+        username = username.toLowerCase()
         const player_id = this.get_player_id(username)
         return player_id?player_id:this.create_player(username)
     }
 
     get_player_username(player_id){
         const result = this.conn.get(`SELECT username FROM player WHERE id=(?)`, [player_id])
-        return result?result.username:""
+        return result?result.username:null
     }
 
     get_player_truename(player_id){
         const result = this.conn.get(`SELECT truename FROM player WHERE id=(?)`, [player_id])
-        return result?result.truename:""
+        return result?result.truename:null
     }
 
     save_message(username, message){
@@ -345,7 +346,7 @@ class Database{
     }
 
     get_song_id(song){
-        return this.conn.get(`
+        const ret = this.conn.get(`
         SELECT id FROM song
         WHERE
                 anime = ?
@@ -357,7 +358,8 @@ class Database{
                 artist = ?
             AND
                 link = ?
-        `, [song.anime, song.type, song.name, song.artist, song.link]).id
+        `, [song.anime, song.type, song.name, song.artist, song.link])
+        return ret?ret.id:null
     }
 
     get_or_create_song_id(song){
@@ -410,21 +412,24 @@ class Database{
     }
 
     get_total_games(){
-        return this.conn.get(`
-        SELECT count(*) as c FROM game`).c
+        const ret = this.conn.get(`
+        SELECT count(*) as c FROM game`)
+        return ret?ret.c:null
     }
 
     get_player_game_count(player_id){
-        return this.conn.get(`
+        const ret = this.conn.get(`
         SELECT count(*) as c FROM gametoplayer
-        WHERE player_id = ?`, [player_id]).c
+        WHERE player_id = ?`, [player_id])
+        return ret?ret.c:null
     }
 
     get_player_win_count(player_id){
-        return this.conn.get(`
+        const ret = this.conn.get(`
         SELECT count(*) as c FROM gametoplayer
         WHERE player_id = ?
-        AND position = 1`, [player_id]).c
+        AND position = 1`, [player_id])
+        return ret?ret.c:null
     }
 
     get_player_hit_count(player_id){
@@ -469,15 +474,18 @@ class Database{
         }
     }
     get_elo(player_id){
-        return this.conn.get(`
+        const ret = this.conn.get(`
         SELECT rating FROM elo
-        WHERE player_id = ?`, [player_id]).rating
+        WHERE player_id = ?`, [player_id])
+        return ret?ret.rating:null
     }
 
     get_or_create_elo(player_id){
+        if(!player_id){
+            return null
+        }
         let res = this.get_elo(player_id)
         if (!res){
-            default_elo = 1400
             this.conn.run(`
             INSERT INTO elo VALUES(
             ?,
@@ -644,3 +652,4 @@ if __name__ == "__main__":
     print(database.ban_readable(banner="player2"))
     print(database.conn.execute(input()).fetchall())
 */
+module.exports = {Database}

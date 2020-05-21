@@ -31,13 +31,13 @@ async function main() {
 
 	await socket.connect(token)
 
+    const db = new Database("default.db")
     const theChat = new ChatController(socket, events, true)
     theChat.start()
     const theRoom = new Room(socket, events, db)
     const theGame = new Game(socket, events, db)
     const theChatMonitor = new ChatMonitor(socket, events, db)
     const theSocialManager = new SocialManager(socket, events, db)
-    const db = new Database("default.db")
     socket.roomBrowser.host(defaultSettings)
     let stillon = true
     events.on("terminate", () => {stillon = false})

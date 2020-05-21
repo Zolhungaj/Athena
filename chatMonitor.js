@@ -177,12 +177,18 @@ class ChatMonitor {
             case "elo":
                 if(parts[1]){
                     if(isModerator){
-                        this.autoChat("elo", [parts[1], this.db.get_or_create_elo(parts[i]), "cheese"])
+                        const player_id = this.db.get_player_id(parts[1])
+                        if(player_id){
+                            this.autoChat("elo", [parts[1], this.db.get_or_create_elo(player_id), "cheese"])
+                        }else{
+                            this.autoChat("unknown_player", [sender])
+                        }
                     }else{
                         this.autoChat("permission_denied", [sender])
                     }
                 }else{
-                    this.autoChat("elo", [sender, this.db.get_or_create_elo(parts[i]), "cheese"])
+                    const player_id = this.db.get_or_create_player_id(sender)
+                    this.autoChat("elo", [sender, this.db.get_or_create_elo(player_id), "cheese"])
                 }
                 break
             case "forceevent":

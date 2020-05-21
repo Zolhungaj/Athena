@@ -103,5 +103,6 @@
     "stop": ["Shutting down...", "aaaaaaaaAaAaAAaa", "Please..."],
     "system": ["System"],
     "unknown_commmand": [ "Unrecognized command" ],
+    "unknown_player": [ "Unrecognized player" ],
     "you_answered": [ "You answered: &1"]
 }
