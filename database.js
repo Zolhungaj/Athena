@@ -129,64 +129,87 @@ class Database{
             );`, [], this.dud)
     }
 
-    create_player(username){
-        try{
-            this.conn.run(`INSERT INTO player VALUES(
-            NULL,
-            (?),
-            ?
-            )`, [username.toLowerCase(), username], this.dud)
-        }catch(e){
-            return null
+    create_player(username, callback){
+        //this also doubles as the get_or_create, but it is fundamentally slower 
+        //due to the guaranteed fail on insert of existing person
+        const ret = () => {
+            this.get_player_id(username, callback)
         }
-        return this.get_player_id(username)
-    }
-
-    get_player_id(username){
-        if (!username){
-            return null
-        }
-        username = username.toLowerCase()
-        const result = this.conn.get(`SELECT id FROM player WHERE username=(?)`, [username])
-        return result?result.id:null
-    }
-
-    get_or_create_player_id(username){
-        username = username.toLowerCase()
-        const player_id = this.get_player_id(username)
-        return player_id?player_id:this.create_player(username)
-    }
-
-    get_player_username(player_id){
-        const result = this.conn.get(`SELECT username FROM player WHERE id=(?)`, [player_id])
-        return result?result.username:null
-    }
-
-    get_player_truename(player_id){
-        const result = this.conn.get(`SELECT truename FROM player WHERE id=(?)`, [player_id])
-        return result?result.truename:null
-    }
-
-    save_message(username, message){
-        player_id = this.get_or_create_player_id(username)
-        this.conn.run(`
-        INSERT INTO message VALUES(
+        this.conn.run(`INSERT INTO player VALUES(
         NULL,
         (?),
-        DATETIME('now'),
-        (?)
-        )`, [player_id, message])
+        ?
+        )`, [username.toLowerCase(), username], ret)
     }
 
-    ban_player(username, reason=null, banner=null){
-        const player_id = this.get_or_create_player_id(username)
-        const banner_id = banner?this.get_or_create_player_id(banner):0
-        this.conn.run(`
-        INSERT INTO banned VALUES(
-        (?),
-        (?),
-        (?)
-        )`, [player_id, reason, banner_id])
+    get_player_id(username, callback){
+        const ret = (err, row) => {
+            callback(row?row.id:null)
+        }
+        this.conn.get(`SELECT id FROM player WHERE username=(?)`, [username.toLowerCase()], ret)
+    }
+
+    get_or_create_player_id(username, callback){
+        const ret = (player_id) => {
+            if(player_id){
+                callback(player_id)
+            }else{
+                this.create_player(username, callback)
+            }
+        }
+        this.get_player_id(username, ret)
+    }
+
+    get_player_username(player_id, callback){
+        const ret = (err, row) => {
+            callback(row?row.username:null)
+        }
+        this.conn.get(`SELECT username FROM player WHERE id=(?)`, [player_id], ret)
+    }
+
+    get_player_truename(player_id, callback){
+        const ret = (err, row) => {
+            callback(row?row.truename:null)
+        }
+        this.conn.get(`SELECT truename FROM player WHERE id=(?)`, [player_id], ret)
+    }
+
+    save_message(username, message, callback){
+        const ret = (player_id) => {
+            const success = (err) => {
+                callback(!err)
+            }
+            this.conn.run(`
+                INSERT INTO message VALUES(
+                NULL,
+                (?),
+                DATETIME('now'),
+                (?)
+            )`, [player_id, message], success)
+        }
+        this.get_or_create_player_id(username, ret)
+    }
+
+    ban_player(username, reason=null, banner=null){   
+        const outer_ret = (player_id) => {
+            const ret = (banner_id) => {
+                const success = (err) => {
+                    callback(!err)
+                }
+                this.conn.run(`
+                    INSERT INTO banned VALUES(
+                    (?),
+                    (?),
+                    (?)
+                )`, [player_id, reason, banner_id], success)
+            }
+            if(banner){
+                this.get_or_create_player_id(banner, ret)
+            }else{
+                ret(0)
+            }
+        }
+        this.get_or_create_player_id(username, outer_ret)
     }
 
     unban_player(username){
@@ -240,7 +263,7 @@ class Database{
         WHERE player_id = ?`, [this.get_player_id(username)])
     }
 
-    is_administrator(username){
+    is_administrator(username, callback){
         return !!this.conn.get(` 
         SELECT *
         FROM administrator
@@ -255,11 +278,11 @@ class Database{
             this.conn.run(`INSERT INTO moderator VALUES(
             ?,
             ?
-            )`, [player_id, source_id])
+            )`, [player_id, source_id], this.dud())
         }catch(e){
-            return false
+            //return false
         }
-        return true
+        //return true
     }
 
     remove_moderator(username){
