@@ -5,6 +5,7 @@ const ChatMonitor = require("./chatMonitor").ChatMonitor
 const ChatController = require("./chatController").ChatController
 const Game = require("./game").Game
 const SocialManager = require("./socialManager").SocialManager
+const Database = require("./database").Database
 
 const fs = require('fs');
 
@@ -32,18 +33,30 @@ async function main() {
 
     const theChat = new ChatController(socket, events, true)
     theChat.start()
-    const theRoom = new Room(socket, events)
-    const theGame = new Game(socket, events)
-    const theChatMonitor = new ChatMonitor(socket, events)
-    const theSocialManager = new SocialManager(socket, events)
+    const theRoom = new Room(socket, events, db)
+    const theGame = new Game(socket, events, db)
+    const theChatMonitor = new ChatMonitor(socket, events, db)
+    const theSocialManager = new SocialManager(socket, events, db)
+    const db = new Database("default.db")
     socket.roomBrowser.host(defaultSettings)
     let stillon = true
     events.on("terminate", () => {stillon = false})
+    socket.on(EVENTS.FORCED_LOGOFF, ({reason}) => {
+        events.emit("terminate")
+        console.log("forced logged off", reason)
+    })
+    socket.on(EVENTS.SERVER_RESTART, ({time, msg}) => {
+        const milliseconds = (time*60-30)*1000
+        setTimeout(() => {
+            events.emit("terminate")
+            console.log("server restarted", msg)
+        }, milliseconds)
+    })
     while(stillon){
         events.emit("tick")
         await sleep(1000)
     }
-
+    await sleep(2000)
     theRoom.destroy()
     if (debug) {
         listener.destroy()
