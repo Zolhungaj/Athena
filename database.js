@@ -174,7 +174,7 @@ class Database{
         this.conn.get(`SELECT truename FROM player WHERE id=(?)`, [player_id], ret)
     }
 
-    save_message(username, message, callback){
+    save_message(username, message, callback=this.dud){
         const ret = (player_id) => {
             const success = (err) => {
                 callback(!err)
@@ -190,7 +190,7 @@ class Database{
         this.get_or_create_player_id(username, ret)
     }
 
-    ban_player(username, reason=null, banner=null){   
+    ban_player(username, reason=null, banner=null, callback=this.dud){   
         const outer_ret = (player_id) => {
             const ret = (banner_id) => {
                 const success = (err) => {
@@ -212,14 +212,20 @@ class Database{
         this.get_or_create_player_id(username, outer_ret)
     }
 
-    unban_player(username){
+    unban_player(username, callback=this.dud){
+        const success = (err) => {
+            callback(!err)
+        }
         this.conn.run(`
         DELETE FROM banned
         WHERE player_id = ?
-        `, [this.get_player_id(username)])
+        `, [this.get_player_id(username)], success)
     }
 
-    ban_readable(username=null, banner=null){
+    ban_readable(username=null, banner=null, callback){
+        const ret = (err, rows) => {
+            callback(err?[]:rows)
+        }
         let query = `
         SELECT p.username as thePlayer, reason, p2.username as theBanner
         FROM banned AS b
@@ -231,73 +237,106 @@ class Database{
         if (username){
             if (banner){
                 query += "WHERE p.username = ? AND p2.username = ?;"
-                return this.conn.all(query, [username, banner])
+                this.conn.all(query, [username, banner], ret)
             } else{
                 query += "WHERE p.username = ?;"
-                return this.conn.all(query, [username])
+                this.conn.all(query, [username], ret)
             }
         }else if (banner){
             query += "WHERE p2.username = ?;"
-            return this.conn.all(query, [banner])
+            this.conn.all(query, [banner], ret)
         }else{
-            return this.conn.all(query+";")
+            this.conn.all(query+";", [], ret)
         }
     }
-    add_administrator(username, source=null){
-        //this.add_moderator(username, source)
-        const player_id = this.get_or_create_player_id(username)
-        const source_id = this.get_player_id(source)||0
-        try{
-            this.conn.run(`INSERT INTO administrator VALUES(
-            ?,
-            ?
-            )`, [player_id, source_id])
-        }catch(e){
-            return false
-        }     
-        return true
+
+    add_administrator(username, source=null, callback=this.dud){
+        const outer_ret = (player_id) => {
+            const ret = (source_id) => {
+                source_id = source_id || 0
+                const success = (err) => {
+                    callback(!err)
+                }
+                this.conn.run(`INSERT INTO administrator VALUES(
+                    ?,
+                    ?
+                    )`, [player_id, source_id], success)
+            }
+            this.get_player_id(source, ret)
+        }
+        this.get_or_create_player_id(username, outer_ret)
     }
 
-    remove_administrator(username){
-        this.conn.run(`DELETE FROM administrator
-        WHERE player_id = ?`, [this.get_player_id(username)])
+    remove_administrator(username, callback=this.dud){
+        const success = (err) => {
+            callback(!err)
+        }
+        const ret = (player_id) => {
+            this.conn.run(`DELETE FROM administrator
+            WHERE player_id = ?`, [player_id], success)
+        }
+        this.get_player_id(username, ret)
     }
 
     is_administrator(username, callback){
-        return !!this.conn.get(` 
-        SELECT *
-        FROM administrator
-        WHERE player_id = ?`, [this.get_player_id(username)])
-        //!! is an idiom for is not false, it's less wordy than Boolean(huge function)
-    }
-
-    add_moderator(username, source=null){
-        const player_id = this.get_or_create_player_id(username)
-        const source_id = this.get_player_id(source)||0
-        try{
-            this.conn.run(`INSERT INTO moderator VALUES(
-            ?,
-            ?
-            )`, [player_id, source_id], this.dud())
-        }catch(e){
-            //return false
+        const success = (err, row) => {
+            callback(!err&&!!row)//!! is an idiom for is not false, it's less wordy than Boolean()
         }
-        //return true
-    }
-
-    remove_moderator(username){
-        this.conn.run(`DELETE FROM moderator
-        WHERE player_id = ?`, [this.get_player_id(username)])
-    }
-
-    is_moderator(username){
-        if(this.is_administrator(username)){
-            return true
+        const ret = (player_id) => {
+            this.conn.get(` 
+            SELECT *
+            FROM administrator
+            WHERE player_id = ?`, [player_id], success)
         }
-        return !!this.conn.get(`
-        SELECT *
-        FROM moderator
-        WHERE player_id = ?`, [this.get_player_id(username)])
+        this.get_player_id(username, ret)
+    }
+
+    add_moderator(username, source=null, callback=this.dud){
+        const outer_ret = (player_id) => {
+            const ret = (source_id) => {
+                source_id = source_id || 0
+                const success = (err) => {
+                    callback(!err)
+                }
+                this.conn.run(`INSERT INTO moderator VALUES(
+                    ?,
+                    ?
+                    )`, [player_id, source_id], success)
+            }
+            this.get_player_id(source, ret)
+        }
+        this.get_or_create_player_id(username, outer_ret)
+    }
+
+    remove_moderator(username, callback=this.dud){
+        const success = (err) => {
+            callback(!err)
+        }
+        const ret = (player_id) => {
+            this.conn.run(`DELETE FROM moderator
+            WHERE player_id = ?`, [player_id], success)
+        }
+        this.get_player_id(username, ret)
+    }
+
+    is_moderator(username, callback){
+        const success = (err, row) => {
+            callback(!err&&!!row)
+        }
+        const ret = (player_id) => {
+            this.conn.get(` 
+            SELECT *
+            FROM moderator
+            WHERE player_id = ?`, [player_id], success)
+        }
+        const isAdmin = (bool) => {
+            if(bool){
+                callback(true)
+            }else{
+                this.get_player_id(username, ret)
+            }
+        }
+        this.is_administrator(username, isAdmin)
     }
 
     add_valour(username, referer=null){
@@ -321,37 +360,73 @@ class Database{
         return true
     }
 
-    has_valour(username){
-        return !!this.conn.execute(`
-        SELECT player_id
-        FROM valour
-        WHERE player_id = ?`, [this.get_player_id(username)])
+    has_valour(username, callback){
+        const ret = (player_id) => {
+            const success = (err, row) => {
+                callback(!err&&row)
+            }
+            this.conn.execute(`
+                SELECT player_id
+                FROM valour
+                WHERE player_id = ?
+            `, [player_id], success)
+        }
+        this.get_player_id(username, ret)
     }
 
-    get_valour_surplus(username){
-        if (this.has_valour(username)){
+    get_valour_surplus(username, callback){
+        const ret1 = (bool) => {
+            if(bool){
+                this.get_player_id(username, ret2)
+            }else{
+                callback(-1)
+            }
+        }
+        const ret2 = (player_id) => {
             return this.conn.get(`
                 SELECT surplus
                 FROM valour
                 WHERE player_id = ?
-            `, [this.get_player_id(username)]).surplus
+            `, [player_id], success)
         }
-        else{
-            return -1
+        const success = (err, row) => {
+            if(err){
+                callback(-2)
+            }else{
+                callback(row?row.id:-3)
+            }
         }
+        this.has_valour(username, ret1)
     }
 
-    change_valour_surplus(username, change){
-        const new_surplus = this.get_valour_surplus(username) + change
-        this.conn.run(`UPDATE valour
-        SET surplus = ?
-        WHERE player_id = ?
-        `, [new_surplus, this.get_player_id(username)])
+    change_valour_surplus(username, change, callback=this.dud){
+        const success = (err) => {
+            callback(!err)
+        }
+        const ret = (surplus) => {
+            if(surplus < 0){
+                callback(false)
+            }else{
+                const new_surplus = surplus + change
+                const inner_ret = (player_id) => {
+                    this.conn.run(`
+                        UPDATE valour
+                        SET surplus = ?
+                        WHERE player_id = ?
+                    `, [new_surplus, player_id], success)
+                }
+                this.get_player_id(username, inner_ret)
+            }
+        }
+        this.get_valour_surplus(username, ret)    
     }
         
 
-    valour_readable(){
-        return this.conn.all(`
+    valour_readable(callback){
+        const ret = (err, rows) => {
+            callback(err?[]:rows)
+        }
+        this.conn.all(`
         WITH RECURSIVE record (lvl, player_id, referer_id) AS
         (SELECT 0, v.player_id AS player_id, v.referer_id AS referer_id
             FROM valour v
@@ -365,11 +440,14 @@ class Database{
         FROM record AS r
         JOIN player AS p on p.id = r.player_id
         LEFT OUTER JOIN player as p2 on p2.id = r.referer_id
-        ORDER BY r.lvl, p.username, p2.username`)
+        ORDER BY r.lvl, p.username, p2.username`, [], ret)
     }
 
-    get_song_id(song){
-        const ret = this.conn.get(`
+    get_song_id(song, callback){
+        const ret = (err, row) => {
+            callback(err?null:row?row.id:null)
+        }
+        this.conn.get(`
         SELECT id FROM song
         WHERE
                 anime = ?
@@ -381,78 +459,112 @@ class Database{
                 artist = ?
             AND
                 link = ?
-        `, [song.anime, song.type, song.name, song.artist, song.link])
-        return ret?ret.id:null
+        `, [song.anime, song.type, song.name, song.artist, song.link], ret)
     }
 
-    get_or_create_song_id(song){
-        let res = this.get_song_id(song)
-        if (!res){
-            this.conn.run(`
-            INSERT INTO song VALUES(
-            NULL,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?)
-            `, [song.anime, song.type, song.name, song.artist, song.link])
-            res = this.get_song_id(song)
+    get_or_create_song_id(song, callback){
+        const ret2 = (err) => {
+            if(err){
+                callback(null)
+            }else{
+                this.get_song_id(song, callback)
+            }
         }
-        return res
+        const ret = (res) => {
+            if(res){
+                callback(res)
+            }else{
+                this.conn.run(`
+                    INSERT INTO song VALUES(
+                    NULL,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?)
+                `, [song.anime, song.type, song.name, song.artist, song.link], ret2)
+            }
+        }
+        this.get_song_id(song, ret)
     }
 
-    create_game(song_count, player_count){
+    create_game(song_count, player_count, callback){
+        const step3 = (err, row) => {
+            callback(err?null:row?row.id:null)
+        }
+        const step2 = (err) => {
+            if(err){
+                callback(null)
+            }else{
+                this.conn.get(`
+                    SELECT id FROM game
+                    ORDER BY id DESC
+                    LIMIT 1
+                `, [], step3)
+            }
+        }
+        //step1:
         this.conn.run(`
         INSERT INTO game VALUES(
         NULL,
         ?,
         ?,
         DATETIME('now')
-        )`, [song_count, player_count])
-        return this.conn.get(`
-        SELECT id FROM game
-        ORDER BY id DESC
-        LIMIT 1`).id
+        )`, [song_count, player_count], step2)
     }
 
-    add_song_to_game(game_id, song, ordinal){
-        this.conn.run(`
-        INSERT INTO gametosong VALUES(
-        ?,
-        ?,
-        ?
-        )`, [game_id, this.get_or_create_song_id(song), ordinal])
+    add_song_to_game(game_id, song, ordinal, callback=this.dud){
+        const success = (err) => {
+            callback(!err)
+        }
+        const ret = (song_id) => {
+            this.conn.run(`
+            INSERT INTO gametosong VALUES(
+            ?,
+            ?,
+            ?
+            )`, [game_id, song_id, ordinal], success)
+        }
+        this.get_or_create_song_id(song, ret)
     }
 
-    get_all_ratings(){
-        return this.conn.all(`
+    get_all_ratings(callback){
+        const ret = (err, rows) => {
+            callback(err?[]:rows)
+        }
+        this.conn.all(`
         SELECT DISTINCT(g.player_id), rating
         FROM gametoplayer g
         INNER JOIN elo e
         ON e.player_id = g.player_id
-        ORDER BY rating DESC`)
+        ORDER BY rating DESC`, [], ret)
     }
 
-    get_total_games(){
-        const ret = this.conn.get(`
-        SELECT count(*) as c FROM game`)
-        return ret?ret.c:null
+    get_total_games(callback){
+        const ret = (err, row) => {
+            callback(err?null:row?row.c:null)
+        }
+        this.conn.get(`
+        SELECT count(*) as c FROM game`, ret)
     }
 
     get_player_game_count(player_id){
-        const ret = this.conn.get(`
+        const ret = (err, row) => {
+            callback(err?null:row?row.c:null)
+        }
+        this.conn.get(`
         SELECT count(*) as c FROM gametoplayer
-        WHERE player_id = ?`, [player_id])
-        return ret?ret.c:null
+        WHERE player_id = ?`, [player_id], ret)
     }
 
     get_player_win_count(player_id){
-        const ret = this.conn.get(`
+        const ret = (err, row) => {
+            callback(err?null:row?row.c:null)
+        }
+        this.conn.get(`
         SELECT count(*) as c FROM gametoplayer
         WHERE player_id = ?
-        AND position = 1`, [player_id])
-        return ret?ret.c:null
+        AND position = 1`, [player_id], ret)
     }
 
     get_player_hit_count(player_id){
@@ -645,7 +757,7 @@ class Database{
 
     
     dud(){
-        //this does nothing, just keeps errors from destroying the world
+        //this does nothing, just prevents optional callbacks from destroying the world
     }
 }
 
