@@ -33,7 +33,7 @@ class ChatController {
         //events.on("early end", (data) => this.autoChat("early_end"))
         events.on("auto chat", (name, replacements=[]) => this.autoChat(name,replacements))
         events.on("chat", (msg) => this.chat(msg))
-        events.on("terminate", () => {this.autoChat("shutting_down")})
+        events.on("terminate", () => {this.autoChat("stop")})
         events.on("setchattiness", (newValue) => {this.chattiness = newValue})
 
         socket.on(EVENTS.ANSWER_RESULTS, (data) => this.answerResults(data))

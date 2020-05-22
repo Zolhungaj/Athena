@@ -90,7 +90,6 @@ module.exports = {
 	//ANILIST_UPDATE_RESULT: "anime list update result",
 	//CLEAR_MAL: "clear mal",
 	//SERVER_STATE_CHANGED: "server state change",
-	FORCED_LOGOFF: "force logoff",
 	ALERT: "alert",
 	UNKNOWN_ERROR: "unknown error",
 	SERVER_RESTART: "server restart",

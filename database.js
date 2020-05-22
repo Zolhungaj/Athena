@@ -548,7 +548,7 @@ class Database{
         SELECT count(*) as c FROM game`, ret)
     }
 
-    get_player_game_count(player_id){
+    get_player_game_count(player_id, callback){
         const ret = (err, row) => {
             callback(err?null:row?row.c:null)
         }
@@ -557,7 +557,7 @@ class Database{
         WHERE player_id = ?`, [player_id], ret)
     }
 
-    get_player_win_count(player_id){
+    get_player_win_count(player_id, callback){
         const ret = (err, row) => {
             callback(err?null:row?row.c:null)
         }
@@ -567,191 +567,295 @@ class Database{
         AND position = 1`, [player_id], ret)
     }
 
-    get_player_hit_count(player_id){
-        const hit = this.conn.get(`
+    get_player_hit_count(player_id, callback){
+        const ret = (err, row) => {
+            callback(err?0:row?row.s:0)
+        }
+        this.conn.get(`
         SELECT SUM(result) as s FROM gametoplayer
-        WHERE player_id = ?`, [player_id])
-        return hit?hit.s:0
+        WHERE player_id = ?`, [player_id], ret)
     }
 
-    get_player_miss_count(player_id){
-        const miss = this.conn.get(`
+    get_player_miss_count(player_id, callback){
+        const ret = (err, row) => {
+            callback(err?0:row?row.s:0)
+        }
+        this.conn.get(`
         SELECT SUM(miss_count) as s FROM gametoplayer
-        WHERE player_id = ?`, [player_id])
-        return miss?miss.s:0
+        WHERE player_id = ?`, [player_id], ret)
     }
 
-    get_player_song_count(player_id){
-        return this.get_player_hit_count(player_id) + this.get_player_miss_count(player_id)
-    }
-
-    get_player_hit_rate(player_id){
-        const hit = this.get_player_hit_count(player_id)
-        const total = this.get_player_song_count(player_id)
-        return (hit/total*100).toFixed(2) + "%"
-    }
-
-    get_player_hit_miss_ratio(player_id){
-        const hit = this.get_player_hit_count(player_id)
-        const miss = this.get_player_miss_count(player_id)
-        if(!hit&&!miss){
-            return "0:0"
-        }else if (hit == miss){
-            return "1:1"
-        }else if (!miss){
-            return "1:0"
-        }else if (!hit) {
-            return "0:1"
-        }else if (hit > miss){
-            return (hit/miss).toFixed(2) + ":1"
-        }else{
-            return "1:" + (miss/hit).toFixed(2)
+    get_player_song_count(player_id, callback){
+        const ret = (hit_count) => {
+            const inner_ret = (miss_count) => {
+                callback(hit_count+miss_count)
+            }
+            this.get_player_miss_count(player_id, inner_ret)
         }
+        this.get_player_hit_count(player_id, ret)
     }
-    get_elo(player_id){
-        const ret = this.conn.get(`
+
+    get_player_hit_rate(player_id, callback){
+        const ret = (hit_count) => {
+            const inner_ret = (total) => {
+                callback((hit_count/total*100).toFixed(2) + "%")
+            }
+            this.get_player_song_count(player_id, inner_ret)
+        }
+        this.get_player_hit_count(player_id, ret)
+    }
+
+    get_player_hit_miss_ratio(player_id, callback){
+        const ret = (hit) => {
+            const inner_ret = (miss) => {
+                let res = ""
+                if(!hit&&!miss){
+                    res = "0:0"
+                }else if (hit == miss){
+                    res = "1:1"
+                }else if (!miss){
+                    res = "1:0"
+                }else if (!hit) {
+                    res = "0:1"
+                }else if (hit > miss){
+                    res = (hit/miss).toFixed(2) + ":1"
+                }else{
+                    res = "1:" + (miss/hit).toFixed(2)
+                }
+                callback(res)
+            }
+            this.get_player_miss_count(player_id, inner_ret)
+        }
+        this.get_player_hit_count(player_id, ret)
+        
+    }
+    get_elo(player_id, callback){
+        const ret = (err, row) => {
+            callback(err?null:row?row.rating:null)
+        }
+        this.conn.get(`
         SELECT rating FROM elo
-        WHERE player_id = ?`, [player_id])
-        return ret?ret.rating:null
+        WHERE player_id = ?`, [player_id], ret)
     }
 
-    get_or_create_elo(player_id){
-        if(!player_id){
-            return null
+    get_or_create_elo(player_id, callback){
+        const ret2 = (err) => {
+            if(err){
+                callback(null)
+            }else{
+                this.get_elo(player_id, callback)
+            }
         }
-        let res = this.get_elo(player_id)
-        if (!res){
-            this.conn.run(`
-            INSERT INTO elo VALUES(
-            ?,
-            ?
-            )`, (player_id, this.default_elo))
-            res = this.get_elo(player_id)
+        const ret1 = (elo) => {
+            if(elo){
+                callback(elo)
+            }else{
+                this.conn.run(`
+                    INSERT INTO elo VALUES(
+                    ?,
+                    ?
+                    )`, [player_id, this.default_elo], ret2)
+            }
         }
-        return res
+        this.get_elo(player_id, ret1)
     }
 
-    update_elo(game_id, player_id, diff){
-        const elo = this.get_or_create_elo(player_id)
-        if (diff > 0)
+    update_elo(game_id, player_id, diff, callback=this.dud){
+        if (diff > 0){
             diff = Math.ceil(diff)
-        else
+        }
+        else{
             diff = Math.floor(diff)
-        this.conn.run(`
-        UPDATE elo
-        SET rating = ?
-        WHERE player_id = ?
-        `, [elo + diff, player_id])
-        this.conn.run(`
-        INSERT INTO elodiff VALUES(
-        ?,
-        ?,
-        ?
-        )`, [game_id, player_id, diff])
+        }
+        const ret3 = (err) => {
+            callback(!err)
+        }
+        const ret2 = (err) => {
+            if(err){
+                callback(false)
+            }else{
+                this.conn.run(`
+                    INSERT INTO elodiff VALUES(
+                    ?,
+                    ?,
+                    ?
+                )`, [game_id, player_id, diff], ret3)
+            }
+        }
+        const ret = (elo) => {
+            this.conn.run(`
+                UPDATE elo
+                SET rating = ?
+                WHERE player_id = ?
+            `, [elo + diff, player_id], ret2)
+        }
+        this.get_or_create_elo(player_id, ret)
     }
 
-    get_result_leaderboard_player_id(top=10){
-        return this.conn.all(`
-        SELECT player_id, MAX(result)
-        FROM gametoplayer
-        GROUP BY player_id
-        ORDER BY result DESC
-        LIMIT ?`, [top])
+    get_result_leaderboard_player_id(top=10, callback){
+        const ret = (err, rows) => {
+            callback(err?[]:rows)
+        }
+        this.conn.all(`
+            SELECT player_id, MAX(result)
+            FROM gametoplayer
+            GROUP BY player_id
+            ORDER BY result DESC
+            LIMIT ?
+        `, [top], ret)
     }
 
-    get_result_leaderboard_truename(top=10){
-        return this.conn.all(`
-        SELECT truename, MAX(result)
-        FROM player
-        JOIN gametoplayer
-        ON player_id=id
-        GROUP BY player_id
-        ORDER BY result DESC
-        LIMIT ?`, [top])
+    get_result_leaderboard_truename(top=10, callback){
+        const ret = (err, rows) => {
+            callback(err?[]:rows)
+        }
+        this.conn.all(`
+            SELECT truename, MAX(result)
+            FROM player
+            JOIN gametoplayer
+            ON player_id=id
+            GROUP BY player_id
+            ORDER BY result DESC
+            LIMIT ?
+        `, [top], ret)
     }
 
     record_game(song_list, players){
-        const game_id = this.create_game(len(song_list), len(players))
+        const great_wrapper = (game_id) => {
+            let counter = 0
+            const song_list_with_ordinal = {}
+            for (let i = 0; i < song_list.length; i++){
+                const s = song_list[i]
+                this.add_song_to_game(game_id, s, counter)
+                song_list_with_ordinal["" + s] = counter
+                counter += 1
+            }
+            for (let i = 0; i < players.length; i++){
+                const p = players[i]
+                const correct_songs = p.correct_songs.length
+                const missed_songs = p.wrong_songs.length
+                let position = 1
+                for(let j = 0; j < players.length; j++){
+                    const p2 = players[j]
+                    if (p2.correct_songs.length > correct_songs){
+                        position += 1
+                    }
+                }
+                const smaller_wrapper = (player_id) => { 
+                    this.conn.run(`
+                    INSERT into gametoplayer VALUES(
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?
+                    )`, [game_id, player_id, correct_songs, missed_songs, position])
+                    for(let j = 0; j < p.correct_songs.length; j++){
+                        const s = p.correct_songs[j]
+                        const ordinal = song_list_with_ordinal[s.songinfo+""]
+                        this.conn.run(`
+                        INSERT into gameplayertocorrect VALUES(
+                        ?,
+                        ?,
+                        ?,
+                        ?
+                        )`, (game_id, player_id, ordinal, s.answer))
+                    }
+                    for(let j = 0; j < p.wrong_songs.length; j++){
+                        const s = p.wrong_songs[j]
+                        const ordinal = song_list_with_ordinal[s.songinfo+""]
+                        this.conn.run(`
+                        INSERT into gameplayertomissed VALUES(
+                        ?,
+                        ?,
+                        ?,
+                        ?
+                        )`, (game_id, player_id, ordinal, s.answer))
+                    }
+
+                }
+                this.get_or_create_player_id(p.username, smaller_wrapper)
+            }
+            const player_id_wrapper = (player_ids) => {
+                const elos_wrapper = (elos) => {
+                    const player_id_elo_score = []
+                    for (let i = 0; i < players.length; i++){
+                        const p = players[i]
+                        const player_id = this.get_or_create_player_id(p.username)
+                        const elo = this.get_or_create_elo(player_id)
+                        const correct_songs = p.correct_songs.length
+                        player_id_elo_score.push({player_id, elo, correct_songs})
+                    }
+                    const k = 32
+                    const k2 = Math.floor(k*2/players.length)
+                    for (let i = 0; i < player_id_elo_score.length; i++){
+                        const {player_id: p, elo: elo1, correct_songs} = player_id_elo_score[i]
+                        let diff = 0
+                        for (let j = 0; j < player_id_elo_score.length; j++){
+                            const {player_id: p2, elo: elo2, correct_songs: correct_songs2} = player_id_elo_score[j]
+                            const ex1 = 1/(1+10**((elo2-elo1)/400))
+                            const ex2 = 1/(1+10**((elo1-elo2)/400))
+                            let s1 = 1
+                            if (correct_songs == correct_songs2){
+                                s1 = 0.5
+                            }else if (correct_songs < correct_songs2){
+                                s1 = 0
+                            }
+                            const diff2 = (s1 - ex1) * k2
+                            diff += diff2
+                        }
+                        diff = Math.min(k,Math.max(diff, -k))
+                        this.update_elo(game_id, p, diff)
+                    }
+
+                }
+                this.get_bulk_elo(player_ids, elos_wrapper)
+            }
+            const usernames = []
+            for(let i = 0; i < players.length; i++){
+                usernames.push(players[i].username)
+            }
+            this.get_bulk_player_id(usernames, player_id_wrapper)
+        }
+        this.create_game(song_list.length, players.length, great_wrapper)
+    }
+
+    get_bulk_player_id(usernames=[], callback){
+        const target = usernames.length
         let counter = 0
-        const song_list_with_ordinal = {}
-        for (let i = 0; i < song_list.length; i++){
-            const s = song_list[i]
-            this.add_song_to_game(game_id, s, counter)
-            song_list_with_ordinal["" + s] = counter
-            counter += 1
-        }
-        for (let i = 0; i < players.length; i++){
-            const p = players[i]
-            const player_id = this.get_or_create_player_id(p.username)
-            const correct_songs = p.correct_songs.length
-            const missed_songs = p.wrong_songs.length
-            let position = 1
-            for(let j = 0; j < players.length; j++){
-                const p2 = players[j]
-                if (p2.correct_songs.length > correct_songs){
-                    position += 1
+        let func = (ids) => {
+            let ret = (id) => {
+                ids.push(id)
+                counter++
+                if(counter >= target){
+                    callback(ids)
+                }else{
+                    func(ids)
                 }
             }
-            this.conn.run(`
-            INSERT into gametoplayer VALUES(
-            ?,
-            ?,
-            ?,
-            ?,
-            ?
-            )`, [game_id, player_id, correct_songs, missed_songs, position])
-            for(let j = 0; j < p.correct_songs.length; j++){
-                const s = p.correct_songs[j]
-                const ordinal = song_list_with_ordinal[s.songinfo+""]
-                this.conn.execute(`
-                INSERT into gameplayertocorrect VALUES(
-                ?,
-                ?,
-                ?,
-                ?
-                )`, (game_id, player_id, ordinal, s.answer))
-            }
-            for(let j = 0; j < p.wrong_songs.length; j++){
-                const s = p.wrong_songs[j]
-                const ordinal = song_list_with_ordinal[s.songinfo+""]
-                this.conn.execute(`
-                INSERT into gameplayertomissed VALUES(
-                ?,
-                ?,
-                ?,
-                ?
-                )`, (game_id, player_id, ordinal, s.answer))
-            }
+            const username = usernames[counter]
+            this.get_or_create_player_id(username, ret)
         }
-        const player_id_elo_score = []
-        for (let i = 0; i < players.length; i++){
-            const p = players[i]
-            const player_id = this.get_or_create_player_id(p.username)
-            const elo = this.get_or_create_elo(player_id)
-            const correct_songs = p.correct_songs.length
-            player_id_elo_score.push({player_id, elo, correct_songs})
-        }
-        const k = 32
-        const k2 = Math.floor(k*2/players.length)
-        for (let i = 0; i < player_id_elo_score.length; i++){
-            const {player_id: p, elo: elo1, correct_songs} = player_id_elo_score[i]
-            let diff = 0
-            for (let j = 0; j < player_id_elo_score.length; j++){
-                const {player_id: p2, elo: elo2, correct_songs: correct_songs2} = player_id_elo_score[j]
-                const ex1 = 1/(1+10**((elo2-elo1)/400))
-                const ex2 = 1/(1+10**((elo1-elo2)/400))
-                let s1 = 1
-                if (correct_songs == correct_songs2){
-                    s1 = 0.5
-                }else if (correct_songs < correct_songs2){
-                    s1 = 0
+        func()
+    }
+
+    get_bulk_elo(player_ids=[], callback){
+        const target = player_ids.length
+        let counter = 0
+        let func = (elos) => {
+            let ret = (elo) => {
+                elos.push(elo)
+                counter++
+                if(counter >= target){
+                    callback(elos)
+                }else{
+                    func(elos)
                 }
-                const diff2 = (s1 - ex1) * k2
-                diff += diff2
             }
-            diff = Math.min(k,Math.max(diff, -k))
-            this.update_elo(game_id, p, diff)
+            const p = player_ids[counter]
+            this.get_or_create_elo(p, ret)
         }
+        func()
     }
 
 

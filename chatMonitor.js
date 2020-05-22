@@ -59,6 +59,7 @@ class ChatMonitor {
 
     ban(name, reason, kicker="System") {
         this.socket.lobby.kick(name)
+        this.db.ban_player(name, reason, kicker)
         this.grudges.push({name, reason, kicker})
 
         const successListener = this.socket.on(EVENTS.PLAYER_LEFT, (data) => {
@@ -89,16 +90,12 @@ class ChatMonitor {
         if(!message) {
             return
         }
-        const senderIsPrivileged = this.isPrivileged(sender)
         const reason = this.isBad(message)
         if(reason) {
-            if(senderIsPrivileged) {
-                this.autoChat("scorn_admin", [sender])
-            }else {
+            this.isPrivileged(sender, ()=>{this.autoChat("scorn_admin", [sender])}, () => {
                 this.kick(sender, reason)
                 this.socket.social.report("Verbal Abuse", reason, sender)
-                return
-            }
+            })
         }
         if(message[0] === "/"){
             this.handleCommand(sender, message.slice(1))
@@ -108,8 +105,6 @@ class ChatMonitor {
 
     handleCommand = (sender, command) => {
         const parts = command.split(" ")
-        const isAdmin = this.isAdmin(sender)
-        const isModerator = this.isModerator(sender)
 
         switch(parts[0].toLowerCase()) {
             case "help":
@@ -119,12 +114,8 @@ class ChatMonitor {
                     this.chat(possibility[0])
                 }else{
                     this.autoChat("help")
-                    if(isAdmin){
-                        this.autoChat("help_admin")
-                    }
-                    if(isModerator){
-                        this.autoChat("help_moderator")
-                    }
+                    this.isAdmin(sender, () => {this.autoChat("help_admin")})
+                    this.isModerator(sender, () => {this.autoChat("help_moderator")})
                 }
                 break
             case "about":
@@ -154,67 +145,53 @@ class ChatMonitor {
                 break
 
             case "stop":
-                if(isAdmin){
-                    this.events.emit("terminate")
-                }else{
-                    this.autoChat("permission_denied", [sender])
-                }
+                this.isAdmin(sender, () => {this.events.emit("terminate")}, () => {this.autoChat("permission_denied", [sender])})
                 break
             case "addadmin":
-                if(isAdmin){
-                    this.autoChat("not_implemented")
-                }else{
-                    this.autoChat("permission_denied", [sender])
-                }
+                this.isAdmin(sender, () => {this.autoChat("not_implemented")}, () => {this.autoChat("permission_denied", [sender])})
                 break
             case "ban":
-                if(isAdmin) {
-                    this.ban(parts[1], parts.slice(2).join(""), sender)
-                }else{
-                    this.autoChat("permission_denied", [sender])
-                }
+                this.isAdmin(sender, () => {this.ban(parts[1], parts.slice(2).join(""), sender)}, () => {this.autoChat("permission_denied", [sender])})
                 break
             case "elo":
                 if(parts[1]){
-                    if(isModerator){
-                        const player_id = this.db.get_player_id(parts[1])
+                    this.isModerator(sender, () => {
+                        const ret = (player_id) => {
+                            if(player_id){
+                                this.db.get_or_create_elo(player_id, (elo) => {this.autoChat("elo", [parts[1], elo, "TBD"])})
+                            }else{
+                                this.autoChat("unknown_player", [sender])
+                            }
+                        }
+                        this.db.get_player_id(parts[1], ret)
+                    }, () => { this.autoChat("permission_denied", [sender] )})
+                }else{
+                    const ret = (player_id) => {
                         if(player_id){
-                            this.autoChat("elo", [parts[1], this.db.get_or_create_elo(player_id), "cheese"])
+                            this.db.get_or_create_elo(player_id, (elo) => {this.autoChat("elo", [sender, elo, "TBD"])})
                         }else{
                             this.autoChat("unknown_player", [sender])
                         }
-                    }else{
-                        this.autoChat("permission_denied", [sender])
                     }
-                }else{
-                    const player_id = this.db.get_or_create_player_id(sender)
-                    this.autoChat("elo", [sender, this.db.get_or_create_elo(player_id), "cheese"])
+                    this.db.get_player_id(sender, ret)
                 }
                 break
             case "forceevent":
-                if(isModerator){
-                    this.events.emit("forceevent")
-                }else{
-                    this.autoChat("permission_denied", [sender])
-                }
+                this.isModerator(sender, () => {this.events.emit("forceevent")}, () => {this.autoChat("permission_denied", [sender])})
                 break
             case "kick":
-                if(isModerator){
-                    this.kick(parts[1], parts.slice(2).join(""), sender)
-                }else{
-                    this.autoChat("permission_denied", [sender])
-                }
+                this.isModerator(sender, () => {
+                    this.isPrivileged(parts[1], () => {this.autoChat("permission_denied", [sender])}, () => {this.kick(parts[1], parts.slice(2).join(""), sender)})
+                }, () => {this.autoChat("permission_denied", [sender])})
                 break
             case "setchattiness":
-                if(isModerator){
+                this.isModerator(sender, () => {
                     if(isNaN(parts[1])){
                         this.autoChat("nan", [parts[1]])
                     }else{ 
                         this.events.emit("setchattiness", Number(parts[1]))
                     }
-                }else{
-                    this.autoChat("permission_denied", [sender])
-                }
+                }, () => {this.autoChat("permission_denied", [sender])})
                 break
             default:
                 this.autoChat("unknown_command")
@@ -223,16 +200,33 @@ class ChatMonitor {
         
     }
 
-    isPrivileged(name){
-        return this.isAdmin(name) || this.isModerator(name)
+    isPrivileged(name, callback_true=this.dud, callback_false=this.dud){
+        let ret = () => {
+            this.isAdmin(callback_true, callback_false)
+        }
+        this.isModerator(name, callback_true, ret)
     }
 
-    isAdmin(name){
-        return this.db.is_administrator(name)
+    isAdmin(name, callback_true=this.dud, callback_false=this.dud){
+        let ret = (bool) => {
+            if(bool){
+                callback_true(name)
+            }else{
+                callback_false(name)
+            }
+        }
+        this.db.is_administrator(name, ret)
     }
 
-    isModerator(name){
-        return this.db.is_moderator(name)
+    isModerator(name, callback_true=this.dud, callback_false=this.dud){
+        let ret = (bool) => {
+            if(bool){
+                callback_true(name)
+            }else{
+                callback_false(name)
+            }
+        }
+        this.db.is_moderator(name, ret)
     }
 
     isBad = (message) => {
@@ -244,5 +238,6 @@ class ChatMonitor {
         }
         return ""
     }
+    dud = () => {}
 }
 module.exports = {ChatMonitor}
