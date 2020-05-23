@@ -29,6 +29,16 @@ class Database{
         FOREIGN KEY(player_id) REFERENCES player(id),
         FOREIGN KEY(banner) REFERENCES player(id)
         );`)
+        c.run(`CREATE TABLE IF NOT EXISTS level(
+        player_id INTEGER PRIMARY KEY,
+        level INTEGER NOT NULL,
+        FOREIGN KEY(player_id) REFERENCES player(id)
+        );`)
+        c.run(`CREATE TABLE IF NOT EXISTS avatar(
+        player_id INTEGER PRIMARY KEY,
+        avatar TEXT NOT NULL,
+        FOREIGN KEY(player_id) REFERENCES player(id)
+        );`)
         c.run(`CREATE TABLE IF NOT EXISTS game(
         id INTEGER PRIMARY KEY,
         song_count INTEGER,
@@ -174,6 +184,62 @@ class Database{
         this.conn.get(`SELECT truename FROM player WHERE id=(?)`, [player_id], ret)
     }
 
+    get_player(username, callback){
+        const outer_ret = (player_id) => {
+            const ret = (banned) => {
+
+            }
+            if(!player_id){
+                callback({player_id:null, level:null, avatar:null, banned:null})
+            }else{
+                this.is
+            }
+        }
+        this.get_player_id(username, outer_ret)
+    }
+
+    get_player_level(player_id, callback){
+        const ret = (err, row) => {
+            callback(row?row.level:null)
+        }
+        this.conn.get(`SELECT level FROM level WHERE player_id=(?)`, [player_id], ret)
+    }
+
+    update_player_level(player_id, new_level, callback){
+        const success = (err) => {
+            callback(!err)
+        }
+        const ret = (err) => {
+            if(err){
+                this.conn.run("INSERT INTO level(?,?)", [player_id, player_level], success)
+            }else{
+                callback(true)
+            }
+        }
+        this.conn.run("UPDATE level SET level = ? WHERE player_id = ?", [new_level, player_id], ret)
+    }
+
+    get_player_avatar(player_id, callback){
+        const ret = (err, row) => {
+            callback(row?row.avatar:null)
+        }
+        this.conn.get(`SELECT avatar FROM avatar WHERE player_id=(?)`, [player_id], ret)
+    }
+
+    update_player_avatar(player_id, new_avatar, callback){
+        const success = (err) => {
+            callback(!err)
+        }
+        const ret = (err) => {
+            if(err){
+                this.conn.run("INSERT INTO avatar(?,?)", [player_id, player_avatar], success)
+            }else{
+                callback(true)
+            }
+        }
+        this.conn.run("UPDATE avatar SET avatar = ? WHERE player_id = ?", [new_avatar, player_id], ret)
+    }
+
     save_message(username, message, callback=this.dud){
         const ret = (player_id) => {
             const success = (err) => {
@@ -216,10 +282,26 @@ class Database{
         const success = (err) => {
             callback(!err)
         }
-        this.conn.run(`
-        DELETE FROM banned
-        WHERE player_id = ?
-        `, [this.get_player_id(username)], success)
+        const ret = (player_id) => {
+            this.conn.run(`
+            DELETE FROM banned
+            WHERE player_id = ?
+            `, [player_id], success)
+        }
+        this.get_player_id(username, ret)
+    }
+
+    is_banned(username, callback=this.dud){
+        const success = (err, row) => {
+            callback(err?false:row?false:true)
+        }
+        const ret = (player_id) => {
+            this.conn.run(`
+            SELECT player_id FROM banned
+            WHERE player_id = ?
+            `, [player_id], success)
+        }
+        this.get_player_id(username, ret)
     }
 
     ban_readable(username=null, banner=null, callback){
@@ -339,25 +421,38 @@ class Database{
         this.is_administrator(username, isAdmin)
     }
 
-    add_valour(username, referer=null){
+    add_valour(username, referer=null, callback=this.dud){
         //valour is a joke I added to hone my skills on recursive database calls
-        if (referer){
-            if (this.get_valour_surplus(referer) <= 0){
-                return false
+        const success = (err) => {
+            if(err){
+                callback(false)
+            }else{
+                this.change_valour_surplus(referer, -1, callback)
             }
         }
-        try{
-            this.conn.run(`INSERT INTO valour VALUES(
-            ?,
-            2,
-            ?
-            )`, [this.get_player_id(username), this.get_player_id(referer)])
-            
-            this.change_valour_surplus(referer, -1)
-        }catch(e){
-            return false
+        const outer_ret = (player_id) => {
+            const inner_ret = (referer_id) => {
+                referer_id = referer_id || 0
+                this.conn.run(`INSERT INTO valour VALUES(
+                    ?,
+                    2,
+                    ?
+                    )`, [player_id, referer_id], success)
+            }
+            if(!player_id){
+                callback(false)
+            }else{
+                this.get_player_id(referer, inner_ret)
+            }
         }
-        return true
+        const ret = (surplus) => {
+            if(surplus <= 0){
+                callback(false)
+            }else{
+                this.get_player_id(username, outer_ret)
+            }
+        }
+        this.get_valour_surplus(referer, ret)
     }
 
     has_valour(username, callback){
