@@ -1,7 +1,8 @@
 const {SocketWrapper, getToken, EVENTS, sleep} = require('./node/amq-api')
+const Player = require("./player").Player
 class Room {
     //this handles events that concern the room
-	constructor(socket, events) {
+	constructor(socket, events, db) {
         this.players = {}
         this.activePlayers = {}
         this.spectators = {}
@@ -13,6 +14,7 @@ class Room {
         this.counter = this.target
         this.time = 0
         this.startBlocked = true
+        this.db = db
 
         this.ingame = false
 
@@ -46,6 +48,7 @@ class Room {
         this.quizOverListener = socket.on(EVENTS.QUIZ_OVER, (data) => {
             //console.log(data)
             const {players, spectators, inQueue} = data
+            const previousPlayers = this.players
             this.players = {}
             this.activePlayers = {}
             this.spectators = {}
@@ -54,12 +57,12 @@ class Room {
             this.queue = []
             for(let i = 0; i < players.length; i++) {
                 const player = players[i]
-                this.playerJoined(player, true)
+                this.playerJoined(player, false, true)
                 this.counter--
             }
             for(let i = 0; i < spectators.length; i++) {
                 const spectator = spectators[i]
-                this.spectatorJoined(spectator, true)
+                this.spectatorJoined(spectator, true, false)
             }
             for(let i = 0; i < inQueue.length; i++){
                 const q = inQueue[i]
@@ -213,7 +216,7 @@ class Room {
         delete this.spectators[name]
     }
 
-    playerJoined = (playerData, wasSpectator=false) => {
+    playerJoined = (playerData, wasSpectator=false, wasPlayer=false) => {
         //playerData.
         //           name          //string, unique
         //           level         //integer
@@ -239,56 +242,59 @@ class Room {
         //                             backgroundHori //string/filename
         //                             backgroundVert //string/filename
         //                             outfitName     //string
-        const player = playerData
-        console.log(playerData)
-        //let {banned, elo, level, avatar} = this.database.getPlayer(player.name)
-        let {level, avatar} = player
-        const banned = false
-        const elo = 1400
-        if (!level) {
-            player.elo = this.database.newPlayer(player)
-            player.banned = false
-            level = player.level
-            avatar = player.avatar
-        }else{
-            player.banned = banned
-            player.elo = elo
+        const ret = ({player_id, banned, level, avatar}, newPlayer=false) => {
+
+            const player = new Player(playerData.name, playerData.level, playerData.avatar, playerData.ready, playerData.gamePlayerId)
+            console.log(playerData)
+            if (!player_id) {
+                const a = (player_id) => {
+                    ret({player_id, banned, level, avatar}, true)
+                }
+                this.db.create_player(playerData.name, a)
+                return
+            }
+            if(banned) {
+                this.kick(player.name)
+                return
+            }else{
+                this.players[player.name] = player
+            }
+            let changedLevel = 0
+            if (player.level !== level){
+                this.database.update_player_level(player_id, player.level)
+                changedLevel = level - player.level
+            }
+            let changedAvatar = false
+            if (JSON.stringify(player.avatar) !== JSON.stringify(avatar)){
+                this.database.update_avatar(player_id, player.avatar)
+                changedAvatar = true
+            }
+            this.events.emit("new player", {player, wasSpectator, changedLevel, changedAvatar, wasPlayer, newPlayer})
         }
-        if(player.banned) {
-            this.kick(player.name)
-            return
-        }else{
-            this.players[player.name] = player
-        }
-        let changedLevel = false
-        if (player.level !== level){
-            this.database.updateLevel(player.name, player.level)
-            changedLevel = true
-        }
-        let changedAvatar = false
-        if (player.avatar !== avatar){
-            this.database.updateAvatar(player.name, player.avatar)
-            changedAvatar = true
-        }
-        this.events.emit("new player", {player, wasSpectator, changedLevel, changedAvatar})
+        this.db.get_player(playerData.name, ret)
     }
     
-    spectatorJoined = (spectator, wasPlayer=false) => {
+    spectatorJoined = (spectator, wasSpectator=false, wasPlayer=false) => {
         //spectator.
         //          name         // string
         //          gamePlayerId // integer but always null
         //player = database.getSpectator(spectator.name)
-        let player = {name: spectator.name, banned: false}
-        if (!player) {
-            player = {name: spectator.name, banned: false}
-            this.database.newSpectator(spectator.name)
+        const ret = ({player_id, banned}, newPlayer=false) => {
+            if (!player_id) {
+                const a = (player_id) => {
+                    ret({player_id, banned}, true)
+                }
+                this.db.create_player(spectator.name, a)
+                return
+            }
+            if(banned) {
+                this.kick(spectator.name)
+            }else{
+                this.spectators[spectator.name] = {name: spectator.name, banned}
+                this.events.emit("new spectator", {name: spectator.name, wasSpectator, wasPlayer, newPlayer})
+            }
         }
-        if(player.banned) {
-            this.kick(player.name)
-        }else{
-            this.spectators[player.name] = player
-            this.events.emit("new spectator", spectator, wasPlayer)
-        }
+        this.db.get_player(spectator.name, ret)
     }
 
     spectatorChangedToPlayer = (player) => {
@@ -307,7 +313,7 @@ class Room {
         //                          gamePlayerId // null
         //                          name         // string
         this.removePlayer(data.playerDescription.name)
-        this.spectatorJoined(data.spectatorDescription, true)
+        this.spectatorJoined(data.spectatorDescription, false, true)
     }
 
     playerLeftQueue = ({name}) => {
@@ -330,7 +336,7 @@ class Room {
         //     gamePlayerId //integer
         const oldName = data.oldName
         const newName = data.newName
-        this.database.changeName(oldName, newName)
+        this.db.change_name(oldName, newName)
         if(this.players[oldName]) {
             this.players[oldName].name = newName
             this.players[newName] = this.players[oldName]
@@ -349,7 +355,7 @@ class Room {
         //     newName //string
         const oldName = data.oldName
         const newName = data.newName
-        this.database.changeName(oldName, newName)
+        this.db.change_name(oldName, newName)
         if(spectators[oldName]) {
             this.spectators[oldName].name = newName
             this.spectators[newName] = this.spectators[oldName]
@@ -364,7 +370,7 @@ class Room {
         //     newName //string
         const oldName = data.oldName
         const newName = data.newName
-        this.database.changeName(oldName, newName)
+        this.db.change_name(oldName, newName)
     }
 
     destroy = () => {

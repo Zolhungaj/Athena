@@ -1,7 +1,7 @@
 const fs = require("fs")
 const {EVENTS, sleep} = require('./node/amq-api')
 class ChatController {
-    constructor(socket, events, debug=false) {
+    constructor(socket, events, selfName, debug=false) {
         this.messageQueue = []
         this.socket = socket
         this.events = events
@@ -140,11 +140,82 @@ class ChatController {
         }
     }
 
-    newPlayer = ({player, wasSpectator, changedLevel, changedAvatar}) => {
+    newPlayer = ({player, wasSpectator, changedLevel, changedAvatar, wasPlayer, newPlayer}) => {
         const name = player.name
         const level = player.level
-        if(!wasSpectator){
-            this.autoChat("greeting_player", [player.name])
+        let the_milestone = 0
+        let huge_milestone = 0
+        let big_milestone = 0
+        let milestone = 0
+        for(let i = level - changedLevel + 1; i <= level; i++){
+            if(i % 1000 === 0){
+                the_milestone = i
+            }
+            if(i % 100 === 0){
+                huge_milestone = i
+            }
+            if(i % 50 === 0){
+                big_milestone = i
+            }
+            if (i % 10 === 0){
+                milestone = i
+            }
+        }
+        if(newPlayer){
+            this.autoChat("greeting_new_player", [name, selfName])
+        }else if(wasPlayer) {
+            if(the_milestone){
+                this.autoChat("comment_on_the_milestone_in_room", [name, the_milestone])
+            }else if(huge_milestone) {
+                this.autoChat("comment_on_huge_milestone_in_room", [name, level])
+            }else if(big_milestone) {
+                this.autoChat("comment_on_big_milestone_in_room", [name, level])
+            }else if(milestone) {
+                this.autoChat("comment_on_milestone_in_room", [name, level])
+            }else if(changedLevel > 1) {
+                this.autoChat("comment_on_big_level_up_in_room", [name, level, changedLevel])
+            }else if(changedLevel) {
+                this.autoChat("comment_on_level_up_in_room", [name, level])
+            }else{
+                if(Math.random()*100 < this.chattiness/16){
+                    this.autoChat("comment_player", [name])
+                }
+            }
+        }else if(the_milestone){
+            this.autoChat("comment_on_the_milestone", [name, the_milestone])
+        }else if(huge_milestone) {
+            this.autoChat("comment_on_huge_milestone", [name, level])
+        }else if(big_milestone) {
+            this.autoChat("comment_on_big_milestone", [name, level])
+        }else if(milestone) {
+            this.autoChat("comment_on_milestone", [name, level])
+        }else if(changedLevel > 1) {
+            this.autoChat("comment_on_big_level_up", [name, level, changedLevel])
+        }else if(changedLevel) {
+            this.autoChat("comment_on_level_up", [name, level])
+        }else if(changedAvatar){
+            this.autoChat("comment_on_avatar", [name])
+        }else if(wasSpectator){
+            this.autoChat("spectator_to_player", [name])
+        }else {
+            this.autoChat("greeting_player", [name])
+        }
+    }
+
+    newSpectator = ({spectator, wasSpectator, wasPlayer, newPlayer}) => {
+        const name = spectator.name
+        if(newPlayer){
+            this.autoChat("greeting_new_player", [name, selfName])
+        }else if(wasPlayer) {
+            if(Math.random()*100 < this.chattiness/8){
+                this.autoChat("player_to_spectator", [name])
+            }
+        }else if(wasSpectator){
+            if(Math.random()*100 < this.chattiness/16){
+                this.autoChat("comment_specator", [name])
+            }
+        }else {
+            this.autoChat("greeting_spectator", [name])
         }
     }
 }

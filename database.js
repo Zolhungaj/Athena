@@ -152,6 +152,22 @@ class Database{
         )`, [username.toLowerCase(), username], ret)
     }
 
+    change_name(old_name, new_name, callback=this.dud){
+        //this also doubles as the get_or_create, but it is fundamentally slower 
+        //due to the guaranteed fail on insert of existing person
+        const ret = (err) => {
+            callback(err?false:true)
+        }
+        old_name = old_name.toLowerCase()
+        const new_username = new_name.toLowerCase()
+        this.conn.run(`
+            UPDATE player
+            SET username = ?,
+            truename = ?
+            WHERE username = ?
+            `, [new_username, new_name, old_name], ret)
+    }
+
     get_player_id(username, callback){
         const ret = (err, row) => {
             callback(row?row.id:null)
@@ -187,12 +203,18 @@ class Database{
     get_player(username, callback){
         const outer_ret = (player_id) => {
             const ret = (banned) => {
-
+                const ret_inner = (avatar) => {
+                    const manual_curry = (level) => {
+                        callback({player_id, level, avatar, banned})
+                    }
+                    this.get_player_level(player_id, manual_curry)
+                }
+                this.get_player_avatar(player_id, ret_inner)
             }
             if(!player_id){
                 callback({player_id:null, level:null, avatar:null, banned:null})
             }else{
-                this.is
+                this.is_banned(player_id, ret)
             }
         }
         this.get_player_id(username, outer_ret)
@@ -221,18 +243,19 @@ class Database{
 
     get_player_avatar(player_id, callback){
         const ret = (err, row) => {
-            callback(row?row.avatar:null)
+            callback(err?{}:row?JSON.parse(row.avatar):{})
         }
         this.conn.get(`SELECT avatar FROM avatar WHERE player_id=(?)`, [player_id], ret)
     }
 
     update_player_avatar(player_id, new_avatar, callback){
+        new_avatar = JSON.stringify(new_avatar)
         const success = (err) => {
             callback(!err)
         }
         const ret = (err) => {
             if(err){
-                this.conn.run("INSERT INTO avatar(?,?)", [player_id, player_avatar], success)
+                this.conn.run("INSERT INTO avatar(?,?)", [player_id, new_avatar], success)
             }else{
                 callback(true)
             }
@@ -293,7 +316,7 @@ class Database{
 
     is_banned(username, callback=this.dud){
         const success = (err, row) => {
-            callback(err?false:row?false:true)
+            callback(err?false:row?true:false)
         }
         const ret = (player_id) => {
             this.conn.run(`
@@ -876,8 +899,8 @@ class Database{
                     const player_id_elo_score = []
                     for (let i = 0; i < players.length; i++){
                         const p = players[i]
-                        const player_id = this.get_or_create_player_id(p.username)
-                        const elo = this.get_or_create_elo(player_id)
+                        const player_id = player_ids[i]
+                        const elo = elos[i]
                         const correct_songs = p.correct_songs.length
                         player_id_elo_score.push({player_id, elo, correct_songs})
                     }
