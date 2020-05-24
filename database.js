@@ -214,7 +214,7 @@ class Database{
             if(!player_id){
                 callback({player_id:null, level:null, avatar:null, banned:null})
             }else{
-                this.is_banned(player_id, ret)
+                this.is_banned(username, ret)
             }
         }
         this.get_player_id(username, outer_ret)
@@ -227,40 +227,40 @@ class Database{
         this.conn.get(`SELECT level FROM level WHERE player_id=(?)`, [player_id], ret)
     }
 
-    update_player_level(player_id, new_level, callback){
+    update_player_level(player_id, new_level, callback=this.dud){
         const success = (err) => {
             callback(!err)
         }
         const ret = (err) => {
             if(err){
-                this.conn.run("INSERT INTO level(?,?)", [player_id, player_level], success)
+                this.conn.run("UPDATE level SET level = ? WHERE player_id = ?", [new_level, player_id], success)
             }else{
                 callback(true)
             }
         }
-        this.conn.run("UPDATE level SET level = ? WHERE player_id = ?", [new_level, player_id], ret)
+        this.conn.run("INSERT INTO level VALUES(?,?)", [player_id, new_level], ret)
     }
 
     get_player_avatar(player_id, callback){
         const ret = (err, row) => {
-            callback(err?{}:row?JSON.parse(row.avatar):{})
+            callback(err?null:row?JSON.parse(row.avatar):null)
         }
         this.conn.get(`SELECT avatar FROM avatar WHERE player_id=(?)`, [player_id], ret)
     }
 
-    update_player_avatar(player_id, new_avatar, callback){
+    update_player_avatar(player_id, new_avatar, callback=this.dud){
         new_avatar = JSON.stringify(new_avatar)
         const success = (err) => {
             callback(!err)
         }
         const ret = (err) => {
             if(err){
-                this.conn.run("INSERT INTO avatar(?,?)", [player_id, new_avatar], success)
+                this.conn.run("UPDATE avatar SET avatar = ? WHERE player_id = ?", [new_avatar, player_id], success)
             }else{
                 callback(true)
             }
         }
-        this.conn.run("UPDATE avatar SET avatar = ? WHERE player_id = ?", [new_avatar, player_id], ret)
+        this.conn.run("INSERT INTO avatar VALUES(?,?)", [player_id, new_avatar], ret)
     }
 
     save_message(username, message, callback=this.dud){

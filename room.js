@@ -170,7 +170,10 @@ class Room {
         for (let name in this.players){
             if(this.players[name].gamePlayerId === data.gamePlayerId){
                 this.players[name].avatar = data.avatar
-                //this.database.updateAvatar(name, data.avatar)
+                const ret = (player_id) => {
+                    this.db.update_player_avatar(player_id, data.avatar)
+                }
+                this.db.get_player_id(name, ret)
                 this.events.emit("player changed avatar", name, data.avatar)
             }
         }
@@ -261,13 +264,19 @@ class Room {
             }
             let changedLevel = 0
             if (player.level !== level){
-                this.database.update_player_level(player_id, player.level)
-                changedLevel = level - player.level
+                this.db.update_player_level(player_id, player.level)
+                if(level){
+                    changedLevel = player.level - level 
+                }
             }
             let changedAvatar = false
+            console.log(JSON.stringify(player.avatar))
+            console.log(JSON.stringify(avatar))
             if (JSON.stringify(player.avatar) !== JSON.stringify(avatar)){
-                this.database.update_avatar(player_id, player.avatar)
-                changedAvatar = true
+                this.db.update_player_avatar(player_id, player.avatar)
+                if(avatar){
+                    changedAvatar = true
+                }
             }
             this.events.emit("new player", {player, wasSpectator, changedLevel, changedAvatar, wasPlayer, newPlayer})
         }

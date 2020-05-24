@@ -5,6 +5,7 @@ class ChatController {
         this.messageQueue = []
         this.socket = socket
         this.events = events
+        this.selfName = selfName
 
         this.run = false
         this.debug = debug
@@ -141,6 +142,7 @@ class ChatController {
     }
 
     newPlayer = ({player, wasSpectator, changedLevel, changedAvatar, wasPlayer, newPlayer}) => {
+        console.log("-----------------", wasSpectator, changedLevel, changedAvatar, wasPlayer, newPlayer)
         const name = player.name
         const level = player.level
         let the_milestone = 0
@@ -162,16 +164,16 @@ class ChatController {
             }
         }
         if(newPlayer){
-            this.autoChat("greeting_new_player", [name, selfName])
+            this.autoChat("greeting_new_player", [name, this.selfName])
         }else if(wasPlayer) {
             if(the_milestone){
                 this.autoChat("comment_on_the_milestone_in_room", [name, the_milestone])
             }else if(huge_milestone) {
-                this.autoChat("comment_on_huge_milestone_in_room", [name, level])
+                this.autoChat("comment_on_huge_milestone_in_room", [name, huge_milestone])
             }else if(big_milestone) {
-                this.autoChat("comment_on_big_milestone_in_room", [name, level])
+                this.autoChat("comment_on_big_milestone_in_room", [name, big_milestone])
             }else if(milestone) {
-                this.autoChat("comment_on_milestone_in_room", [name, level])
+                this.autoChat("comment_on_milestone_in_room", [name, milestone])
             }else if(changedLevel > 1) {
                 this.autoChat("comment_on_big_level_up_in_room", [name, level, changedLevel])
             }else if(changedLevel) {
@@ -184,11 +186,11 @@ class ChatController {
         }else if(the_milestone){
             this.autoChat("comment_on_the_milestone", [name, the_milestone])
         }else if(huge_milestone) {
-            this.autoChat("comment_on_huge_milestone", [name, level])
+            this.autoChat("comment_on_huge_milestone", [name, huge_milestone])
         }else if(big_milestone) {
-            this.autoChat("comment_on_big_milestone", [name, level])
+            this.autoChat("comment_on_big_milestone", [name, big_milestone])
         }else if(milestone) {
-            this.autoChat("comment_on_milestone", [name, level])
+            this.autoChat("comment_on_milestone", [name, milestone])
         }else if(changedLevel > 1) {
             this.autoChat("comment_on_big_level_up", [name, level, changedLevel])
         }else if(changedLevel) {
@@ -205,7 +207,7 @@ class ChatController {
     newSpectator = ({spectator, wasSpectator, wasPlayer, newPlayer}) => {
         const name = spectator.name
         if(newPlayer){
-            this.autoChat("greeting_new_player", [name, selfName])
+            this.autoChat("greeting_new_player", [name, this.selfName])
         }else if(wasPlayer) {
             if(Math.random()*100 < this.chattiness/8){
                 this.autoChat("player_to_spectator", [name])
