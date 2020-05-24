@@ -31,6 +31,7 @@ class ChatController {
         })
 
         events.on("new player", (data) => this.newPlayer(data))
+        events.on("new spectator", (data) => this.newSpectator(data))
         //events.on("early end", (data) => this.autoChat("early_end"))
         events.on("auto chat", (name, replacements=[]) => this.autoChat(name,replacements))
         events.on("chat", (msg) => this.chat(msg))
@@ -204,8 +205,7 @@ class ChatController {
         }
     }
 
-    newSpectator = ({spectator, wasSpectator, wasPlayer, newPlayer}) => {
-        const name = spectator.name
+    newSpectator = ({name, wasSpectator, wasPlayer, newPlayer}) => {
         if(newPlayer){
             this.autoChat("greeting_new_player", [name, this.selfName])
         }else if(wasPlayer) {

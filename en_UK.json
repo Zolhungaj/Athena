@@ -117,6 +117,7 @@
     "no_songs": [ "There appears to be no available songs, teehee. Consider connecting your anilist or kitsu."],
     "not_implemented": ["This command is not implemented yet."],
     "permission_denied": [ "You do not have permission to do that, &1!" ],
+    "player_to_spectator": [ "&1 takes a breather." ],
     "pm_out": [ "Sent PM to &1: &2" ],
     "profile_elo": [ "Elo: &1 (&2)" ],
     "profile_hit_count": [ "Guessed correctly: &1" ],
