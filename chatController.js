@@ -32,17 +32,45 @@ class ChatController {
             this.premadeMessages = JSON.parse(data)
         })
 
-        events.on("new player", (data) => this.newPlayer(data))
-        events.on("new spectator", (data) => this.newSpectator(data))
-        //events.on("early end", (data) => this.autoChat("early_end"))
-        events.on("auto chat", (name, replacements=[]) => this.autoChat(name, replacements))
-        events.on("auto pm", (target, name, replacements=[]) => this.autopm(target, name, replacements))
-        events.on("chat", (msg) => this.chat(msg))
-        events.on("pm", (target, msg) => this.pm(target, msg))
-        events.on("terminate", () => {this.autoChat("stop")})
-        events.on("setchattiness", (newValue) => {this.chattiness = newValue})
+        this.newPlayerListener = events.on("new player", (data) => this.newPlayer(data))
+        this.newSpectatorListener = events.on("new spectator", (data) => this.newSpectator(data))
+        this.autoChatListener = events.on("auto chat", (name, replacements=[]) => this.autoChat(name, replacements))
+        this.autopmListener = events.on("auto pm", (target, name, replacements=[]) => this.autopm(target, name, replacements))
+        this.chatListener = events.on("chat", (msg) => this.chat(msg))
+        this.pmListener = events.on("pm", (target, msg) => this.pm(target, msg))
+        this.terminateListener = events.on("terminate", () => {this.autoChat("stop")})
+        this.setchattinessListener = events.on("setchattiness", (newValue) => {this.chattiness = newValue})
 
-        socket.on(EVENTS.ANSWER_RESULTS, (data) => this.answerResults(data))
+        this.answerResultsListener = socket.on(EVENTS.ANSWER_RESULTS, (data) => this.answerResults(data))
+        this.newChatAlertListener = socket.on(EVENTS.NEW_CHAT_ALERT, ({name, alert}) => {
+            if(alert === 'Must be Level 20 to Message non Friends'){
+                const oldpmQueue = this.pmQueue
+                this.pmQueue = []
+                for(let i = 0; i < oldpmQueue; i++){
+                    const message = oldpmQueue[i]
+                    if(message.target !== name){
+                        this.pmQueue.push(message)
+                    }
+                }
+                this.socket.social.addFriend(name)
+                this.autoChat("must_be_friend", [name])
+            }else{
+                console.log("unknown alert")
+            }
+        })
+    }
+
+    destroy = () => {
+        this.answerResultsListener.destroy()
+        this.setchattinessListener.destroy()
+        this.newSpectatorListener.destroy()
+        this.newChatAlertListener.destroy()
+        this.terminateListener.destroy()
+        this.newPlayerListener.destroy()
+        this.autoChatListener.destroy()
+        this.autopmListener.destroy()
+        this.chatListener.destroy()
+        this.pmListener.destroy()
     }
 
     answerResults = (data) => {
@@ -90,7 +118,7 @@ class ChatController {
             return
         }
         if(this.pmBlocked){
-            setTimeout(this.pmLoop, 1000)
+            setTimeout(this.pmLoop, 500)
             return
         }
         const packet = this.pmQueue.shift()
@@ -102,10 +130,10 @@ class ChatController {
             this.pmBlocked = true
             let timeout
             let listener = this.socket.on(EVENTS.CHAT_MESSAGE_RESPONSE, () => {this.pmBlocked = false; listener.destroy();clearTimeout(timeout)})
-            timeout = setTimeout(() => {listener.destroy();while(this.pmQueue[0]&&this.pmQueue[0].target == target){this.pmQueue.shift()};this.pmBlocked=false}, 5000) //after five seconds bot will cease current operatio then continue sending messages
+            timeout = setTimeout(() => {listener.destroy();this.pmBlocked=false}, 2000) //after two seconds bot will continue sending messages
             this.socket.social.message(target, msg)
         }
-        setTimeout(this.pmLoop, 400)
+        setTimeout(this.pmLoop, 200)
     }
     pm = (target, msg) => {
         if (!msg) {

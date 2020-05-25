@@ -41,6 +41,11 @@ class ChatMonitor {
         db.create_player(selfName, () => db.add_administrator(selfName)) //make sure bot doesn't do something stupid like banning itself
     }
 
+    destroy = () => {
+        this.playerJoinedListener.destroy()
+        this.handleChatListener.destroy()
+        this.handleChatListener.destroy()
+    }
 
     chat = (msg) => {
         this.events.emit("chat", msg)

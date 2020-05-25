@@ -139,6 +139,10 @@ class Database{
             );`, [], this.dud)
     }
 
+    destroy = () => {
+        this.conn.close()
+    }
+
     create_player(username, callback){
         //this also doubles as the get_or_create, but it is fundamentally slower 
         //due to the guaranteed fail on insert of existing person

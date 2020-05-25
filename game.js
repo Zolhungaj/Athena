@@ -13,8 +13,8 @@ class Game {
 
         
 
-        events.on("game start", (players) => this.start(players))
         this.noSongsListener = socket.on(EVENTS.QUIZ_NO_SONGS, () => this.startFailedNoSongs())
+        this.gameStartListener = events.on("game start", (players) => this.start(players))
         this.quizFatalErrorListener = socket.on(EVENTS.QUIZ_FATAL_ERROR, () => this.startFailed())
         this.quizReturnLobbyResultListener = socket.on(EVENTS.QUIZ_RETURN_LOBBY_VOTE_RESULT, ({passed, reason}) => this.returnLobby(passed, reason))
         this.quizOverListener = socket.on(EVENTS.QUIZ_OVER, (data) => this.quizOver(data))
@@ -24,6 +24,18 @@ class Game {
 
         this.quizEndResultListener = socket.on(EVENTS.QUIZ_END_RESULT, (data) => this.quizEndResult(data))
         this.answerResultsListener = socket.on(EVENTS.ANSWER_RESULTS, (data) => this.answerResults(data))
+    }
+
+    destroy = () => {
+        this.quizReturnLobbyResultListener.destroy()
+        this.quizFatalErrorListener.destroy()
+        this.quizEndResultListener.destroy()
+        this.answerResultsListener.destroy()
+        this.playerLeftListener.destroy()
+        this.gameStartListener.destroy()
+        this.quizReadyListener.destroy()
+        this.quizOverListener.destroy()
+        this.noSongsListener.destroy()
     }
 
     answerResults = ({players, groupMap, songInfo}) => {

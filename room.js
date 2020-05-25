@@ -71,10 +71,12 @@ class Room {
         })
         
 
-        events.on("tick", () => this.tick())
-        events.on("forceevent", () => {this.counter = 1})
+        this.tickListener = events.on("tick", () => this.tick())
+        this.forceeventListener = events.on("forceevent", () => {this.counter = 1})
 
     }
+
+    roomClosed(){}
 
     chat = (msg) => {
         this.events.emit("chat", msg)
@@ -390,22 +392,26 @@ class Room {
     }
 
     destroy = () => {
+        this.playerChangedToSpectatorListener.destroy()
+        this.spectatorChangedToPlayerListener.destroy()
+        this.spectatorNameChangedListener.destroy()
+        this.playerReadyChangedListener.destroy()
+        this.playerNameChangedListener.destroy()
+        this.globalNameChangedListener.destroy()
+        this.newPlayerInQueueListener.destroy()
+        this.hostGameResponseListener.destroy()
+        this.spectatorJoinedListener.destroy()
+        this.playerLeftQueueListener.destroy()
+        this.spectatorLeftListener.destroy()
+        this.avatarChangedListener.destroy()
         this.playerJoinedListener.destroy()
         this.playerLeftListener.destroy()
-        this.playerChangedToSpectatorListener.destroy()
-        this.spectatorJoinedListener.destroy()
-        this.spectatorLeftListener.destroy()
-        this.spectatorChangedToPlayerListener.destroy()
-        this.playerLeftQueueListener.destroy()
-        this.newPlayerInQueueListener.destroy()
-        this.playerNameChangedListener.destroy()
-        this.spectatorNameChangedListener.destroy()
-        this.globalNameChangedListener.destroy()
-        this.avatarChangedListener.destroy()
-        this.playerReadyChangedListener.destroy()
-        this.hostGameResponseListener.destroy()
-        this.noPlayersListener.destroy()
         this.gameClosedListener.destroy()
+        this.forceeventListener.destroy()
+        this.noPlayersListener.destroy()
+        this.quizReadyListener.destroy()
+        this.quizOverListener.destroy()
+        this.tickListener.destroy()
     }
 
     start = () => {

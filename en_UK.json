@@ -121,6 +121,7 @@
     "list_fail_no_games": [ "No games registered yet, @&1." ],
     "list_success": [ "The list is being sent to you over PM, @&1." ],
     "log_chat_out": [ "Sent message: &1" ],
+    "must_be_friend": [ "To recieve messages you have to friend me, &1" ],
     "nan": ["\"&1\" is not a number."],
     "no_game_recorded": ["@&1, you have no recent games."],
     "no_songs": [ "There appears to be no available songs, teehee. Consider connecting your anilist or kitsu."],
