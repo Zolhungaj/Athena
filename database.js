@@ -168,7 +168,7 @@ class Database{
             `, [new_username, new_name, old_name], ret)
     }
 
-    get_player_id(username, callback){
+    get_player_id(username="", callback){
         const ret = (err, row) => {
             callback(row?row.id:null)
         }
@@ -355,7 +355,7 @@ class Database{
         }
     }
 
-    add_administrator(username, source=null, callback=this.dud){
+    add_administrator(username, source=undefined, callback=this.dud){
         const outer_ret = (player_id) => {
             const ret = (source_id) => {
                 source_id = source_id || 0
@@ -687,7 +687,17 @@ class Database{
 
     get_player_hit_count(player_id, callback){
         const ret = (err, row) => {
-            callback(err?0:row?row.s:0)
+            if(err){
+                callback(0)
+            } else if (row){
+                if(row.s){
+                    callback(row.s)
+                }else{
+                    callback(0)
+                }
+            }else{
+                callback(0)
+            }
         }
         this.conn.get(`
         SELECT SUM(result) as s FROM gametoplayer
@@ -727,7 +737,7 @@ class Database{
         const ret = (hit) => {
             const inner_ret = (miss) => {
                 let res = ""
-                if(!hit&&!miss){
+                if(!hit && !miss){
                     res = "0:0"
                 }else if (hit == miss){
                     res = "1:1"
@@ -747,6 +757,7 @@ class Database{
         this.get_player_hit_count(player_id, ret)
         
     }
+
     get_elo(player_id, callback){
         const ret = (err, row) => {
             callback(err?null:row?row.rating:null)
@@ -810,12 +821,12 @@ class Database{
         this.get_or_create_elo(player_id, ret)
     }
 
-    get_result_leaderboard_player_id(top=10, callback){
+    get_result_leaderboard_player_id = (top=10, callback) =>{
         const ret = (err, rows) => {
             callback(err?[]:rows)
         }
         this.conn.all(`
-            SELECT player_id, MAX(result)
+            SELECT player_id, MAX(result) as result
             FROM gametoplayer
             GROUP BY player_id
             ORDER BY result DESC
@@ -823,12 +834,12 @@ class Database{
         `, [top], ret)
     }
 
-    get_result_leaderboard_truename(top=10, callback){
+    get_result_leaderboard_truename = (top=10, callback) =>{
         const ret = (err, rows) => {
             callback(err?[]:rows)
         }
         this.conn.all(`
-            SELECT truename, MAX(result)
+            SELECT truename, MAX(result) as result
             FROM player
             JOIN gametoplayer
             ON player_id=id
@@ -838,6 +849,68 @@ class Database{
         `, [top], ret)
     }
 
+    get_elo_leaderboard_player_id = (top=10, callback) => {
+        const ret = (err, rows) => {
+            callback(err?[]:rows)
+        }
+        this.conn.all(`
+            SELECT player_id, MAX(rating) as rating
+            FROM elo
+            GROUP BY player_id
+            ORDER BY rating DESC
+            LIMIT ?
+        `, [top], ret)
+    }
+
+    get_elo_leaderboard_truename = (top=10, callback) => {
+        const ret = (err, rows) => {
+            callback(err?[]:rows)
+        }
+        this.conn.all(`
+            SELECT truename, MAX(rating) as rating
+            FROM player
+            JOIN elo
+            ON player_id=id
+            GROUP BY player_id
+            ORDER BY rating DESC
+            LIMIT ?
+        `, [top], ret)
+    }
+
+    get_last_game(username, callback){
+        const success = (err, rows) => {
+            callback(err?[]:rows)
+        }
+        username = username.toLowerCase()
+        this.conn.all(`
+            SELECT anime, type, title, artist, link
+            FROM player p
+            JOIN gametoplayer gp ON p.id = gp.player_id
+            natural join gametosong gs
+            join song s on gs.song_id = s.id
+            WHERE username = $username
+            AND game_id = (select MAX(game_id) from gametoplayer gp2 join player p2 on p2.id = gp2.player_id where p2.username = $username)
+            ORDER by ordinal ASC
+        `, {$username: username, }, success)
+    }
+
+    get_missed_last_game(username, callback){
+        const success = (err, rows) => {
+            callback(err?[]:rows)
+        }
+        username = username.toLowerCase()
+        this.conn.all(`
+            SELECT anime, type, title, artist, link, answer
+            FROM player p
+            JOIN gameplayertomissed gp ON p.id = gp.player_id
+            natural join gametosong gs
+            join song s on gs.song_id = s.id
+            WHERE username = $username
+            AND game_id = (select MAX(game_id) from gametoplayer gp2 join player p2 on p2.id = gp2.player_id where p2.username = $username)
+            ORDER by ordinal ASC
+        `, {$username: username, }, success)
+    }
+
     record_game(song_list, players){
         const great_wrapper = (game_id) => {
             let counter = 0
@@ -845,7 +918,7 @@ class Database{
             for (let i = 0; i < song_list.length; i++){
                 const s = song_list[i]
                 this.add_song_to_game(game_id, s, counter)
-                song_list_with_ordinal["" + s] = counter
+                song_list_with_ordinal[JSON.stringify(s)] = counter
                 counter += 1
             }
             for (let i = 0; i < players.length; i++){
@@ -869,26 +942,26 @@ class Database{
                     ?
                     )`, [game_id, player_id, correct_songs, missed_songs, position])
                     for(let j = 0; j < p.correct_songs.length; j++){
-                        const s = p.correct_songs[j]
-                        const ordinal = song_list_with_ordinal[s.songinfo+""]
+                        const {song, answer} = p.correct_songs[j]
+                        const ordinal = song_list_with_ordinal[JSON.stringify(song)]
                         this.conn.run(`
                         INSERT into gameplayertocorrect VALUES(
                         ?,
                         ?,
                         ?,
                         ?
-                        )`, (game_id, player_id, ordinal, s.answer))
+                        )`, (game_id, player_id, ordinal, answer))
                     }
                     for(let j = 0; j < p.wrong_songs.length; j++){
-                        const s = p.wrong_songs[j]
-                        const ordinal = song_list_with_ordinal[s.songinfo+""]
+                        const {song, answer} = p.wrong_songs[j]
+                        const ordinal = song_list_with_ordinal[JSON.stringify(song)]
                         this.conn.run(`
                         INSERT into gameplayertomissed VALUES(
                         ?,
                         ?,
                         ?,
                         ?
-                        )`, (game_id, player_id, ordinal, s.answer))
+                        )`, (game_id, player_id, ordinal, answer))
                     }
 
                 }

@@ -76,7 +76,6 @@ module.exports = {
 	CHAT_MESSAGE: "chat message",
 	SERVER_MESSAGE: "server message",
 	//PLAYER_ONLINE_CHANGE: "player online change",
-	CHAT_MESSAGE_RESPONSE: "chat message response",
 	//NEW_FRIEND: "new friend",
 	//FRIEND_STATE_CHANGE: "friend state change",
 	//FRIEND_NAME_CHANGE: "friend name change",
@@ -92,7 +91,6 @@ module.exports = {
 	//SERVER_STATE_CHANGED: "server state change",
 	ALERT: "alert",
 	UNKNOWN_ERROR: "unknown error",
-	SERVER_RESTART: "server restart",
 	POPOUT_MESSAGE: "popout message",
 	//RANKED_SCORE_UPDATE: "ranked score update",
 	ALL: "*"

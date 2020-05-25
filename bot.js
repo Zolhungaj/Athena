@@ -6,6 +6,7 @@ const ChatController = require("./chatController").ChatController
 const Game = require("./game").Game
 const SocialManager = require("./socialManager").SocialManager
 const Database = require("./database").Database
+const parse = require('csv-parse/lib/sync')
 
 const fs = require('fs');
 
@@ -37,7 +38,7 @@ async function main() {
     theChat.start()
     const theRoom = new Room(socket, events, db)
     const theGame = new Game(socket, events, db)
-    const theChatMonitor = new ChatMonitor(socket, events, db)
+    const theChatMonitor = new ChatMonitor(socket, events, db, selfName, "rating")
     const theSocialManager = new SocialManager(socket, events, db)
     socket.roomBrowser.host(defaultSettings)
     let stillon = true
@@ -66,6 +67,12 @@ async function main() {
 	await sleep(1000)
 
 	socket.disconnect()
+}
+
+class Bot{
+    constructor(username, password, settings, slaves=[], isSlave=false){
+
+    }
 }
 
 main()

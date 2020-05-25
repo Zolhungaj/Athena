@@ -3,9 +3,11 @@ const {EVENTS, sleep} = require('./node/amq-api')
 class ChatController {
     constructor(socket, events, selfName, debug=false) {
         this.messageQueue = []
+        this.pmQueue = []
         this.socket = socket
         this.events = events
         this.selfName = selfName
+        this.pmBlocked = false
 
         this.run = false
         this.debug = debug
@@ -33,8 +35,10 @@ class ChatController {
         events.on("new player", (data) => this.newPlayer(data))
         events.on("new spectator", (data) => this.newSpectator(data))
         //events.on("early end", (data) => this.autoChat("early_end"))
-        events.on("auto chat", (name, replacements=[]) => this.autoChat(name,replacements))
+        events.on("auto chat", (name, replacements=[]) => this.autoChat(name, replacements))
+        events.on("auto pm", (target, name, replacements=[]) => this.autopm(target, name, replacements))
         events.on("chat", (msg) => this.chat(msg))
+        events.on("pm", (target, msg) => this.pm(target, msg))
         events.on("terminate", () => {this.autoChat("stop")})
         events.on("setchattiness", (newValue) => {this.chattiness = newValue})
 
@@ -64,6 +68,7 @@ class ChatController {
     start = () => {
         this.run = true
         this.chatLoop()
+        this.pmLoop()
     }
 
     chatLoop = () => {
@@ -73,11 +78,61 @@ class ChatController {
         const msg = this.messageQueue.shift()
         if(msg) {
             if(this.debug){
-                console.log("chatLoop", "sent message:", msg)
+                console.log("[chatLoop]", "sent message :", msg)
             }
             this.socket.quiz.chat.send(msg)
         }
         setTimeout(this.chatLoop, 500)
+    }
+
+    pmLoop = () => {
+        if (!this.run){
+            return
+        }
+        if(this.pmBlocked){
+            setTimeout(this.pmLoop, 1000)
+            return
+        }
+        const packet = this.pmQueue.shift()
+        const {msg, target} = packet?packet:{}
+        if(msg && target) {
+            if(this.debug){
+                console.log("[pmLoop]", "sent message to",target,":", msg )
+            }
+            this.pmBlocked = true
+            let timeout
+            let listener = this.socket.on(EVENTS.CHAT_MESSAGE_RESPONSE, () => {this.pmBlocked = false; listener.destroy();clearTimeout(timeout)})
+            timeout = setTimeout(() => {listener.destroy();this.pmBlocked=false}, 5000) //after five seconds bot will resume sending messages
+            this.socket.social.message(target, msg)
+        }
+        setTimeout(this.pmLoop, 400)
+    }
+    pm = (target, msg) => {
+        if (!msg) {
+            return
+        }
+        const MESSAGE_LENGTH_LIMIT = 92
+        const words = msg.split(" ")
+        let currentMessage = ""
+        if (words[0].length > MESSAGE_LENGTH_LIMIT) {
+            words.splice(0,1,words[0].slice(0,MESSAGE_LENGTH_LIMIT), words[0].slice(MESSAGE_LENGTH_LIMIT))
+        }
+        currentMessage = words[0] //this is to avoid all messages starting with a space
+        for(let i = 1; i < words.length; i++){
+            if(words[i].length > MESSAGE_LENGTH_LIMIT){
+                let slicepoint = MESSAGE_LENGTH_LIMIT - currentMessage.length - 1
+                words.splice(i,1,words[i].slice(0,slicepoint), words[i].slice(slicepoint))
+            }
+            if(currentMessage.length + 1 + words[i].length > MESSAGE_LENGTH_LIMIT){
+                this.pmQueue.push({target, msg: currentMessage})
+                currentMessage = words[i]
+            }else{
+                currentMessage += " " + words[i]
+            }
+        }
+        if (currentMessage){
+            this.pmQueue.push({target, msg: currentMessage})
+        }
     }
 
     chat = (msg) => {
@@ -127,6 +182,10 @@ class ChatController {
 
     autoChat(messagename, replacements=[]){
         this.chat(this.getRandomMessage(messagename, replacements))
+    }
+
+    autopm(target, messagename, replacements=[]){
+        this.pm(target, this.getRandomMessage(messagename, replacements))
     }
 
     getRandomMessage = (messagename, replacements=[]) => {

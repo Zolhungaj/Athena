@@ -2,13 +2,13 @@ const {SocketWrapper, getToken, EVENTS, sleep} = require('./node/amq-api')
 const Player = require("./player").Player
 class Room {
     //this handles events that concern the room
-	constructor(socket, events, db) {
+	constructor(socket, events, db, debug=true) {
         this.players = {}
         this.activePlayers = {}
         this.spectators = {}
         this.queue = []
         this.socket = socket
-        this.debug = true
+        this.debug = debug
         this.events = events
         this.target = 45
         this.counter = this.target
@@ -86,7 +86,7 @@ class Room {
 
     tick = () => {
         if(this.debug){
-            console.log("tick", this.ingame, this.counter, this.time)
+            //console.log("tick", this.ingame, this.counter, this.time)
         }
         if(this.ingame){
             return
@@ -183,11 +183,18 @@ class Room {
         //data.
         //     gamePlayerId
         //     ready // boolean
+        let success = false
         for (let name in this.players){
             if(this.players[name].gamePlayerId === data.gamePlayerId){
+                if(this.debug && success){
+                    console.log("ERROR: multiple players share the same gamePlayerId", data.gamePlayerId, name)
+                }
                 this.players[name].ready = data.ready
                 console.log(name, "is now", data.ready?"ready":"not ready")
             }
+        }
+        if(this.debug && !success){
+            console.log("unmatched gamePlayerId", data.gamePlayerId)
         }
     }
     
