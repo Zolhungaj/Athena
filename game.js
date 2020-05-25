@@ -2,9 +2,10 @@ const {EVENTS, sleep} = require('./node/amq-api')
 const player = require('./player')
 const Song = require("./song").Song
 class Game {
-    constructor(socket, events){
+    constructor(socket, events, db){
         this.socket = socket
         this.events = events
+        this.db = db
 
         this.active = false
         this.players = {}
@@ -169,17 +170,31 @@ class Game {
     }
 
     earlyEnd(){
+        if(!this.active){
+            return
+        }
+        this.active = false
         this.events.emit("auto chat", "early_end")
         //this.events.emit("record game", this.players)
-        this.db.record_game(this.songList, this.players)
-        this.active = false
+        const playerList = []
+        for(let name in this.players){
+            playerList.push(this.players[name])
+        }
+        this.db.record_game(this.songList, playerList)
         this.quizDone()
     }
 
     quizEndResult(data) {
+        if(!this.active){
+            return
+        }
         this.active = false
         //this.events.emit("record game", this.players)
-        this.db.record_game(this.songList, this.players)
+        const playerList = []
+        for(let name in this.players){
+            playerList.push(this.players[name])
+        }
+        this.db.record_game(this.songList, playerList)
     }
 
     quizOver({spectators, inLobby, settings, inQueue, hostName, gameId, players}){

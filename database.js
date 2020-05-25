@@ -965,7 +965,7 @@ class Database{
                     }
 
                 }
-                this.get_or_create_player_id(p.username, smaller_wrapper)
+                this.get_or_create_player_id(p.name, smaller_wrapper)
             }
             const player_id_wrapper = (player_ids) => {
                 const elos_wrapper = (elos) => {
@@ -1004,7 +1004,7 @@ class Database{
             }
             const usernames = []
             for(let i = 0; i < players.length; i++){
-                usernames.push(players[i].username)
+                usernames.push(players[i].name)
             }
             this.get_bulk_player_id(usernames, player_id_wrapper)
         }
@@ -1027,7 +1027,7 @@ class Database{
             const username = usernames[counter]
             this.get_or_create_player_id(username, ret)
         }
-        func()
+        func([])
     }
 
     get_bulk_elo(player_ids=[], callback){
@@ -1046,7 +1046,7 @@ class Database{
             const p = player_ids[counter]
             this.get_or_create_elo(p, ret)
         }
-        func()
+        func([])
     }
 
 

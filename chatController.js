@@ -102,7 +102,7 @@ class ChatController {
             this.pmBlocked = true
             let timeout
             let listener = this.socket.on(EVENTS.CHAT_MESSAGE_RESPONSE, () => {this.pmBlocked = false; listener.destroy();clearTimeout(timeout)})
-            timeout = setTimeout(() => {listener.destroy();this.pmBlocked=false}, 5000) //after five seconds bot will resume sending messages
+            timeout = setTimeout(() => {listener.destroy();while(this.pmQueue[0]&&this.pmQueue[0].target == target){this.pmQueue.shift()};this.pmBlocked=false}, 5000) //after five seconds bot will cease current operatio then continue sending messages
             this.socket.social.message(target, msg)
         }
         setTimeout(this.pmLoop, 400)
