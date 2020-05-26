@@ -10,10 +10,16 @@ class Game {
         this.active = false
         this.players = {}
         this.songList = []
+        this.answers = {}
 
         
 
         this.noSongsListener = socket.on(EVENTS.QUIZ_NO_SONGS, () => this.startFailedNoSongs())
+        this.answersListener = socket.on(EVENTS.QUIZ_PLAYER_ANSWERS, ({answers}) => {
+            answers.forEach(answer => {
+                this.answers[answer.gamePlayerId] = {answer: answer.answer, answerNumber : answer.answerNumber}
+            });
+        })
         this.gameStartListener = events.on("game start", (players) => this.start(players))
         this.quizFatalErrorListener = socket.on(EVENTS.QUIZ_FATAL_ERROR, () => this.startFailed())
         this.quizReturnLobbyResultListener = socket.on(EVENTS.QUIZ_RETURN_LOBBY_VOTE_RESULT, ({passed, reason}) => this.returnLobby(passed, reason))
@@ -36,6 +42,7 @@ class Game {
         this.quizReadyListener.destroy()
         this.quizOverListener.destroy()
         this.noSongsListener.destroy()
+        this.answersListener.destroy()
     }
 
     answerResults = ({players, groupMap, songInfo}) => {
@@ -139,13 +146,20 @@ class Game {
                 console.log("missing player", players[i])
                 continue
             }
+            let answer = ""
+            let answerNumber = Infinity
+            const pckg = this.answers[player.gamePlayerId]
+            if(pckg){
+                answer = pckg.answer
+                answerNumber = pckg.answerNumber
+            }
             if(correct){
                 player.correct_songs.push({song, answer})
             }else{
                 player.wrong_songs.push({song, answer})
             }
         }
-
+        this.answers = {}
     }
 
     chat = (msg) => {
