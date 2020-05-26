@@ -146,7 +146,7 @@ class Database{
     create_player(username, callback){
         //this also doubles as the get_or_create, but it is fundamentally slower 
         //due to the guaranteed fail on insert of existing person
-        const ret = () => {
+        const ret = (err) => {
             this.get_player_id(username, callback)
         }
         this.conn.run(`INSERT INTO player VALUES(
@@ -937,6 +937,10 @@ class Database{
                     }
                 }
                 const smaller_wrapper = (player_id) => { 
+                    if(!player_id){
+                        console.log("WEEEEEEIRD:", player_id, p.name)
+                        return
+                    }
                     this.conn.run(`
                     INSERT into gametoplayer VALUES(
                     ?,

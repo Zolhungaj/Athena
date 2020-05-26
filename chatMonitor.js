@@ -165,15 +165,68 @@ class ChatMonitor {
                 this.db.get_last_game(sender, ret2)
                 break
             case "answer":
-            
-            case "answeranime":
-
-            case "answersong":
-
-            case "answerartist":
-                this.autoChat("not_implemented")
+                if(parts[1]){
+                    const answer = parts.slice(1).join(" ").trim()
+                    if(answer){
+                        const answers = answer.split("|")
+                        const answeranime = (answers[0] || "").trim()
+                        const answersong = (answers[1] || "").trim()
+                        const answerartist = (answers[2] || "").trim()
+                        if(answeranime){
+                            this.events.emit("bonus anime", sender, answeranime)
+                        }
+                        if(answersong){
+                            this.events.emit("bonus song", sender, answersong)
+                        }
+                        if(answerartist){
+                            this.events.emit("bonus artist", sender, answerartist)
+                        }
+                    }else{
+                        this.autoChat("usage_answer")
+                    }
+                }else{
+                    this.autoChat("usage_answer")
+                }
                 break
-
+            case "answeranime":
+                if(parts[1]){
+                    const answer = parts.slice(1).join(" ").trim()
+                    if(answer){
+                        this.events.emit("bonus anime", sender, answer)
+                    }
+                    else{
+                        this.autoChat("usage_answeranime")
+                    }
+                }else{
+                    this.autoChat("usage_answeranime")
+                }
+                break
+            case "answersong":
+                if(parts[1]){
+                    const answer = parts.slice(1).join(" ").trim()
+                    if(answer){
+                        this.events.emit("bonus song", sender, answer)
+                    }
+                    else{
+                        this.autoChat("usage_answersong")
+                    }
+                }else{
+                    this.autoChat("usage_answersong")
+                }
+                break
+            case "answerartist":
+                if(parts[1]){
+                    const answer = parts.slice(1).join(" ").trim()
+                    if(answer){
+                        this.events.emit("bonus artist", sender, answer)
+                    }
+                    else{
+                        this.autoChat("usage_answerartist")
+                    }
+                }else{
+                    this.autoChat("usage_answerartist")
+                }
+                break
             case "profile":
                 if(parts[1]){
                     this.isModerator(sender, () => {this.profile(parts[1])}, () => {this.autoChat("permission_denied", [sender])} )

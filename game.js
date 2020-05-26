@@ -12,6 +12,14 @@ class Game {
         this.songList = []
         this.answers = {}
 
+        this.bonusAnime = {}
+        this.bonusArtist = {}
+        this.bonusSong = {}
+        
+        this.bonusAnimeScore = {}
+        this.bonusArtistScore = {}
+        this.bonusSongScore = {}
+
         
 
         this.noSongsListener = socket.on(EVENTS.QUIZ_NO_SONGS, () => this.startFailedNoSongs())
@@ -30,6 +38,10 @@ class Game {
 
         this.quizEndResultListener = socket.on(EVENTS.QUIZ_END_RESULT, (data) => this.quizEndResult(data))
         this.answerResultsListener = socket.on(EVENTS.ANSWER_RESULTS, (data) => this.answerResults(data))
+
+        this.bonusAnimeListener = events.on("bonus anime", (player, answer) => { this.bonusAnime[player] = answer })
+        this.bonusSongListener = events.on("bonus song", (player, answer) => { this.bonusSong[player] = answer })
+        this.bonusArtistListener = events.on("bonus artist", (player, answer) => { this.bonusArtist[player] = answer })
     }
 
     destroy = () => {
@@ -37,9 +49,12 @@ class Game {
         this.quizFatalErrorListener.destroy()
         this.quizEndResultListener.destroy()
         this.answerResultsListener.destroy()
+        this.bonusArtistListener.destroy()
         this.playerLeftListener.destroy()
+        this.bonusAnimeListener.destroy()
         this.gameStartListener.destroy()
         this.quizReadyListener.destroy()
+        this.bonusSongListener.destroy()
         this.quizOverListener.destroy()
         this.noSongsListener.destroy()
         this.answersListener.destroy()
@@ -76,7 +91,8 @@ class Game {
         //                        (720
         //                        (480
         //                        (0
-        const animeName = songInfo.animeNames.english || ongInfo.animeNames.romaji
+        const validAnswers = [songInfo.animeNames.english, songInfo.animeNames.romaji]
+        const animeName = songInfo.animeNames.english || songInfo.animeNames.romaji
         const artist = songInfo.artist
         const songName = songInfo.songName
         let type
@@ -154,12 +170,55 @@ class Game {
                 answerNumber = pckg.answerNumber
             }
             if(correct){
+                validAnswers.push(answer)
                 player.correct_songs.push({song, answer})
             }else{
                 player.wrong_songs.push({song, answer})
             }
         }
         this.answers = {}
+        let plusnames = []
+        for(let name in this.bonusAnime){
+            const answer = this.bonusAnime[name]
+            for(let i = 0; i < validAnswers.length; i++){
+                if(validAnswers.toLowerCase() === answer.toLowerCase()){
+                    this.bonusAnimeScore[name] = (this.bonusAnimeScore[name] || 0) + 1
+                    plusnames.push(name)
+                    break
+                }
+            }
+        }
+        if(plusnames){
+            this.chat("+anime+ " + plusnames.join(", "))
+            plusnames = []
+        }
+        this.bonusArtistScore = {}
+        this.bonusSongScore = {}
+        for(let name in this.bonusSong){
+            const answer = this.bonusSong[name]
+            if(answer.toLowerCase() === songName){
+                this.bonusSongScore[name] = (this.bonusSongScore[name] || 0) + 1
+                plusnames.push(name)
+            }
+        }
+        if(plusnames){
+            this.chat("+song+ " + plusnames.join(", "))
+            plusnames = []
+        }
+        for(let name in this.bonusArtist){
+            const answer = this.bonusArtist[name]
+            if(answer.toLowerCase() === artist){
+                this.bonusArtistScore[name] = (this.bonusArtistScore[name] || 0) + 1
+                plusnames.push(name)
+            }
+        }
+        if(plusnames){
+            this.chat("+artist+ " + plusnames.join(", "))
+            plusnames = []
+        }
+        this.bonusAnime = {}
+        this.bonusSong = {}
+        this.bonusArtist = {}
     }
 
     chat = (msg) => {
@@ -206,6 +265,7 @@ class Game {
         for(let name in this.players){
             playerList.push(this.players[name])
         }
+        this.printBonus()
         this.db.record_game(this.songList, playerList)
         this.quizDone()
     }
@@ -220,7 +280,44 @@ class Game {
         for(let name in this.players){
             playerList.push(this.players[name])
         }
+        this.printBonus()
         this.db.record_game(this.songList, playerList)
+    }
+
+    printBonus = () => {
+        if(this.bonusAnimeScore || this.bonusArtistScore || this.bonusSongScore){
+            this.chat("bonus game scores:")
+            if(this.bonusAnimeScore){
+                const arr = []
+                for(let name in this.bonusAnimeScore){
+                    arr.push({name: name, score: this.bonusAnimeScore[name]})
+                }
+                arr.sort((a, b) => a.score - b.score)
+                this.chat("+anime+ " + arr.map(a => a.name + ": " + a.score).join(", "))
+            }
+            if(this.bonusArtistScore){
+                const arr = []
+                for(let name in this.bonusArtistScore){
+                    arr.push({name: name, score: this.bonusArtistScore[name]})
+                }
+                arr.sort((a, b) => a.score - b.score)
+                this.chat("+artist+ " + arr.map(a => a.name + ": " + a.score).join(", "))
+            }
+            if(this.bonusSongScore){
+                const arr = []
+                for(let name in this.bonusSongScore){
+                    arr.push({name: name, score: this.bonusSongScore[name]})
+                }
+                arr.sort((a, b) => a.score - b.score)
+                this.chat("+song+ " + arr.map(a => a.name + ": " + a.score).join(", "))
+            }
+        }
+        this.bonusAnimeScore = {}
+        this.bonusArtistScore = {}
+        this.bonusSongScore = {}
+        this.bonusAnime = {}
+        this.bonusArtist = {}
+        this.bonusSong = {}
     }
 
     quizOver({spectators, inLobby, settings, inQueue, hostName, gameId, players}){
