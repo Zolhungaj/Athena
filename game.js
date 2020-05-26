@@ -196,7 +196,7 @@ class Game {
         this.bonusSongScore = {}
         for(let name in this.bonusSong){
             const answer = this.bonusSong[name]
-            if(answer.toLowerCase() === songName){
+            if(answer.toLowerCase() === songName.toLowerCase()){
                 this.bonusSongScore[name] = (this.bonusSongScore[name] || 0) + 1
                 plusnames.push(name)
             }
@@ -207,7 +207,7 @@ class Game {
         }
         for(let name in this.bonusArtist){
             const answer = this.bonusArtist[name]
-            if(answer.toLowerCase() === artist){
+            if(answer.toLowerCase() === artist.toLowerCase()){
                 this.bonusArtistScore[name] = (this.bonusArtistScore[name] || 0) + 1
                 plusnames.push(name)
             }

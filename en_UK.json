@@ -60,7 +60,8 @@
         "You can't find any greater example of good Christian values than &1",
         "&1 is one of the Seven Wonders of Anime",
         "The greeks of my time would have loved &1",
-        "Is \"&1\" the one with the swan?"
+        "Is \"&1\" the one with the swan?",
+        "&1 has Dayt's favourite Kajiura song"
     ],
     "ban_comment": [ "&1 # By &2 for &3" ],
     "banned_for": [ "Banned for &1" ],

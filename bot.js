@@ -63,7 +63,15 @@ class Bot{
         if(fs.existsSync(path)){
             fs.unlinkSync(path)
         }
-        let token = await getToken(this.username, this.password, path)
+        let token 
+        try{
+            token = await getToken(this.username, this.password, path)
+        }catch{
+            if(fs.existsSync(path)){
+                fs.unlinkSync(path)
+            }
+            token = await getToken(this.username, this.password, path)
+        }
         console.log(token)
         await this.socket.connect(token)
     }
