@@ -181,14 +181,14 @@ class Game {
         for(let name in this.bonusAnime){
             const answer = this.bonusAnime[name]
             for(let i = 0; i < validAnswers.length; i++){
-                if(validAnswers.toLowerCase() === answer.toLowerCase()){
+                if(validAnswers[i].toLowerCase() === answer.toLowerCase()){
                     this.bonusAnimeScore[name] = (this.bonusAnimeScore[name] || 0) + 1
                     plusnames.push(name)
                     break
                 }
             }
         }
-        if(plusnames){
+        if(plusnames.length){
             this.chat("+anime+ " + plusnames.join(", "))
             plusnames = []
         }
@@ -201,7 +201,7 @@ class Game {
                 plusnames.push(name)
             }
         }
-        if(plusnames){
+        if(plusnames.length){
             this.chat("+song+ " + plusnames.join(", "))
             plusnames = []
         }
@@ -212,7 +212,7 @@ class Game {
                 plusnames.push(name)
             }
         }
-        if(plusnames){
+        if(plusnames.length){
             this.chat("+artist+ " + plusnames.join(", "))
             plusnames = []
         }

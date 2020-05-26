@@ -667,7 +667,7 @@ class Database{
             callback(err?null:row?row.c:null)
         }
         this.conn.get(`
-        SELECT count(*) as c FROM game`, ret)
+        SELECT count(*) as c FROM game`, [], ret)
     }
 
     get_player_game_count(player_id, callback){
@@ -958,7 +958,7 @@ class Database{
                         ?,
                         ?,
                         ?
-                        )`, (game_id, player_id, ordinal, answer))
+                        )`, [game_id, player_id, ordinal, answer])
                     }
                     for(let j = 0; j < p.wrong_songs.length; j++){
                         const {song, answer} = p.wrong_songs[j]
@@ -969,7 +969,7 @@ class Database{
                         ?,
                         ?,
                         ?
-                        )`, (game_id, player_id, ordinal, answer))
+                        )`, [game_id, player_id, ordinal, answer])
                     }
 
                 }
