@@ -130,9 +130,9 @@ class Game {
         for(let i = 0; i < players.length; i++){
             const {correct, gamePlayerId, level, pose, position, positionSlot, score} = players[i]
             let player
-            for(let name in players){
-                if (gamePlayerId === players[name]){
-                    player = players[name]
+            for(let name in this.players){
+                if (gamePlayerId === this.players[name].gamePlayerId){
+                    player = this.players[name]
                 }
             }
             if(!player){

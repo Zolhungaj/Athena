@@ -18,6 +18,8 @@ class Room {
 
         this.ingame = false
 
+        this.ready_backup = {} //this fixes a race condition with the database
+
         this.gameId = -1
 
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, (data) => this.playerJoined(data))
@@ -36,7 +38,6 @@ class Room {
         this.globalNameChangedListener = socket.on(EVENTS.ALL_PLAYER_NAME_CHANGE, (data) => this.globalNameChanged(data))
         
         this.avatarChangedListener = socket.on(EVENTS.AVATAR_CHANGE, (data) => this.avatarChanged(data))
-        this.playerReadyChangedListener = socket.on(EVENTS.PLAYER_READY_CHANGE, (data) => this.playerReadyChanged(data))
         
         this.hostGameResponseListener = socket.on(EVENTS.HOST_GAME, (data) => this.hostGameResponse(data))
 
@@ -50,6 +51,7 @@ class Room {
             const {players, spectators, inQueue} = data
             const previousPlayers = this.players
             this.players = {}
+            this.ready_backup = {}
             this.activePlayers = {}
             this.spectators = {}
             this.counter = this.target
@@ -70,7 +72,7 @@ class Room {
             }
         })
         
-
+        this.playerReadyChangedListener = socket.on(EVENTS.PLAYER_READY_CHANGE, (data) => this.playerReadyChanged(data))
         this.tickListener = events.on("tick", () => this.tick())
         this.forceeventListener = events.on("forceevent", () => {this.counter = 1})
 
@@ -98,7 +100,11 @@ class Room {
                 const offenders = []
                 for(let name in this.players){
                     if(!this.players[name].ready) {
-                        offenders.push(name)
+                        if(this.ready_backup[""+this.players[name].gamePlayerId]){
+                            console.log("weird bug found?")
+                        }else{
+                            offenders.push(name)
+                        }
                     }
                 }
                 if (offenders.length === 0){
@@ -157,6 +163,7 @@ class Room {
         this.spectators = {}
         this.queue = []
         this.gameId = data.gameId
+        this.ready_backup = {}
 
         
         for(let i = 0; i < data.players.length; i++){
@@ -193,11 +200,14 @@ class Room {
                 }
                 this.players[name].ready = data.ready
                 console.log(name, "is now", data.ready?"ready":"not ready")
+                success = true
             }
         }
         if(this.debug && !success){
             console.log("unmatched gamePlayerId", data.gamePlayerId)
+            console.log(JSON.stringify(this.players))
         }
+        this.ready_backup[""+data.gamePlayerId] = data.ready
     }
     
     playerLeft = (data) => {
@@ -270,6 +280,7 @@ class Room {
                 return
             }else{
                 this.players[player.name] = player
+                this.ready_backup["" + player.gamePlayerId]
             }
             let changedLevel = 0
             if (player.level !== level){
