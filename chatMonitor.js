@@ -109,6 +109,7 @@ class ChatMonitor {
         if(!message) {
             return
         }
+        this.db.save_message(sender, message)
         const reason = this.isBad(message)
         if(reason) {
             this.isPrivileged(sender, ()=>{this.autoChat("scorn_admin", [sender])}, () => {

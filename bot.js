@@ -15,17 +15,18 @@ async function main() {
     const fields = parse(data, {
         columns: true, 
         delimiter: "|",
-        trim: true
+        trim: true,
+        comment: "#"
     })
     const bots = []
     const slaves = []
 
     for(let i = 0; i < fields.length; i++){
         const field = fields[i]
-        const bot = new Bot(field.username, field.password, field.database, field.settings, field.leaderboard, slaves, field.isSlave)
+        const bot = new Bot(field.username, field.password, field.database, JSON.parse(field.settings.replace(new RegExp("'", "g"), '"')), field.leaderboard, slaves, field.isSlave)
         bots.push(bot)
         await bot.connect()
-        if(field.isSlave){
+        if(field.isSlave.toLowerCase()==="true"){
             slaves.push(bot)
         }else{
             bot.start()
@@ -49,7 +50,7 @@ class Bot{
         this.socket = new SocketWrapper()
         
         if (debug) {
-            this.listener = socket.on(EVENTS.ALL, (data, listener, fullData) => {
+            this.listener = this.socket.on(EVENTS.ALL, (data, listener, fullData) => {
                 //console.log(data)
                 //console.log(listener)
                 console.log(fullData)
@@ -58,14 +59,17 @@ class Bot{
     }
 
     connect = async () =>{
-        fs.unlinkSync(username + 'data.json')
-        let token = await getToken(username, password, username + 'data.json')
+        const path = this.username + 'data.json'
+        if(fs.existsSync(path)){
+            fs.unlinkSync(path)
+        }
+        let token = await getToken(this.username, this.password, path)
         console.log(token)
         await this.socket.connect(token)
     }
 
     start = (settings=this.settings, database=this.database, leaderboard=this.leaderboard) => {
-        this.socket.roomBrowser.host(settings)
+        
         let stillon = true
         const terminateListener = this.events.on("terminate", () => {stillon = false})
         const db = new Database(database)
@@ -75,11 +79,11 @@ class Bot{
         const theGame = new Game(this.socket, this.events, db)
         const theChatMonitor = new ChatMonitor(this.socket, this.events, db, this.username, leaderboard)
         const theSocialManager = new SocialManager(this.socket, this.events, db)
-        const forcedLogOffListener = socket.on(EVENTS.FORCED_LOGOFF, ({reason}) => {
+        const forcedLogOffListener = this.socket.on(EVENTS.FORCED_LOGOFF, ({reason}) => {
             events.emit("terminate")
             console.log("forced logged off", reason)
         })
-        const serverRestartListener = socket.on(EVENTS.SERVER_RESTART, ({time, msg}) => {
+        const serverRestartListener = this.socket.on(EVENTS.SERVER_RESTART, ({time, msg}) => {
             serverRestartListener.destroy()
             const milliseconds = (time*60-30)*1000
             setTimeout(() => {
@@ -87,7 +91,7 @@ class Bot{
                 console.log("server restarted", msg)
             }, milliseconds)
         })
-
+        this.socket.roomBrowser.host(settings)
         const destroy = () => {
             terminateListener.destroy()
             db.destroy()
@@ -102,13 +106,14 @@ class Bot{
 
         const tick = () =>{
             if(stillon){
-                events.emit("tick")
+                this.events.emit("tick")
                 setTimeout(tick, 1000)
                 return
             }else{
                 destroy()
             }
         }
+        tick()
     }
 
     destroy(){
