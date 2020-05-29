@@ -138,6 +138,9 @@ class ChatMonitor {
                     this.isModerator(sender, () => {this.autoChat("help_moderator")})
                 }
                 break
+            case "lobby":
+                this.socket.quiz.returnToLobby()
+                break
             case "about":
                 this.autoChat("about")
                 if(Math.random()*100 < 10){
@@ -280,7 +283,32 @@ class ChatMonitor {
                 this.isAdmin(sender, () => {this.events.emit("terminate")}, () => {this.autoChat("permission_denied", [sender])})
                 break
             case "addadmin":
-                this.isAdmin(sender, () => {this.autoChat("not_implemented")}, () => {this.autoChat("permission_denied", [sender])})
+                this.isAdmin(sender, () => {
+                    if(parts[1]){
+                        this.db.add_administrator(parts[1], sender, (bool) => {
+                            if(bool){
+                                this.autoChat("success", [sender])
+                            }else{
+                                this.autoChat("error", [sender])
+                            }})
+                    }else {
+                        this.autoChat("error", [sender])
+                    }
+                }, () => {this.autoChat("permission_denied", [sender])})
+                break
+            case "addmoderator":
+                this.isAdmin(sender, () => {
+                    if(parts[1]){
+                        this.db.add_moderator(parts[1], sender, (bool) => {
+                            if(bool){
+                                this.autoChat("success", [sender])
+                            }else{
+                                this.autoChat("error", [sender])
+                            }})
+                    }else {
+                        this.autoChat("error", [sender])
+                    }
+                }, () => {this.autoChat("permission_denied", [sender])})
                 break
             case "ban":
                 this.isAdmin(sender, () => {this.ban(parts[1], parts.slice(2).join(" "), sender)}, () => {this.autoChat("permission_denied", [sender])})

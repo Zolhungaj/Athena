@@ -832,6 +832,7 @@ class Database{
         this.conn.all(`
             SELECT player_id, MAX(result) as result
             FROM gametoplayer
+            WHERE player_id not in (SELECT player_id FROM banned)
             GROUP BY player_id
             ORDER BY result DESC
             LIMIT ?
@@ -847,6 +848,7 @@ class Database{
             FROM player
             JOIN gametoplayer
             ON player_id=id
+            WHERE player_id not in (SELECT player_id FROM banned)
             GROUP BY player_id
             ORDER BY result DESC
             LIMIT ?
@@ -861,6 +863,7 @@ class Database{
             SELECT player_id, MAX(rating) as rating
             FROM elo
             GROUP BY player_id
+            WHERE player_id not in (SELECT player_id FROM banned)
             ORDER BY rating DESC
             LIMIT ?
         `, [top], ret)
@@ -875,6 +878,7 @@ class Database{
             FROM player
             JOIN elo
             ON player_id=id
+            WHERE player_id not in (SELECT player_id FROM banned)
             GROUP BY player_id
             ORDER BY rating DESC
             LIMIT ?

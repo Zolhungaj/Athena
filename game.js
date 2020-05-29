@@ -192,8 +192,6 @@ class Game {
             this.chat("+anime+ " + plusnames.join(", "))
             plusnames = []
         }
-        this.bonusArtistScore = {}
-        this.bonusSongScore = {}
         for(let name in this.bonusSong){
             const answer = this.bonusSong[name]
             if(answer.toLowerCase() === songName.toLowerCase()){
@@ -285,9 +283,9 @@ class Game {
     }
 
     printBonus = () => {
-        if(this.bonusAnimeScore || this.bonusArtistScore || this.bonusSongScore){
+        if(Object.keys(this.bonusAnimeScore).length || Object.keys(this.bonusArtistScore).length || Object.keys(this.bonusSongScore).length){
             this.chat("bonus game scores:")
-            if(this.bonusAnimeScore){
+            if(Object.keys(this.bonusAnimeScore).length){
                 const arr = []
                 for(let name in this.bonusAnimeScore){
                     arr.push({name: name, score: this.bonusAnimeScore[name]})
@@ -295,7 +293,7 @@ class Game {
                 arr.sort((a, b) => a.score - b.score)
                 this.chat("+anime+ " + arr.map(a => a.name + ": " + a.score).join(", "))
             }
-            if(this.bonusArtistScore){
+            if(Object.keys(this.bonusArtistScore).length){
                 const arr = []
                 for(let name in this.bonusArtistScore){
                     arr.push({name: name, score: this.bonusArtistScore[name]})
@@ -303,7 +301,7 @@ class Game {
                 arr.sort((a, b) => a.score - b.score)
                 this.chat("+artist+ " + arr.map(a => a.name + ": " + a.score).join(", "))
             }
-            if(this.bonusSongScore){
+            if(Object.keys(this.bonusSongScore).length){
                 const arr = []
                 for(let name in this.bonusSongScore){
                     arr.push({name: name, score: this.bonusSongScore[name]})
