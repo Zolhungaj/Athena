@@ -20,6 +20,8 @@ class Game {
         this.bonusArtistScore = {}
         this.bonusSongScore = {}
 
+        this.globalSongId = 0 // this is a counter to keep the database from crashing if the same song plays twice
+
         
 
         this.noSongsListener = socket.on(EVENTS.QUIZ_NO_SONGS, () => this.startFailedNoSongs())
@@ -148,7 +150,7 @@ class Game {
                 url = openingsmoe["1080"]
             }
         }
-        const song = new Song(animeName, songName, artist, type, url)
+        const song = new Song(animeName, songName, artist, type, url, this.globalSongId++)
         this.songList.push(song)
         for(let i = 0; i < players.length; i++){
             const {correct, gamePlayerId, level, pose, position, positionSlot, score} = players[i]

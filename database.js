@@ -924,9 +924,9 @@ class Database{
             let counter = 0
             const song_list_with_ordinal = {}
             for (let i = 0; i < song_list.length; i++){
-                const s = song_list[i]
-                this.add_song_to_game(game_id, s, counter)
-                song_list_with_ordinal[JSON.stringify(s)] = counter
+                const song = song_list[i]
+                this.add_song_to_game(game_id, song, counter)
+                song_list_with_ordinal[song.id] = counter
                 counter += 1
             }
             for (let i = 0; i < players.length; i++){
@@ -955,7 +955,7 @@ class Database{
                     )`, [game_id, player_id, correct_songs, missed_songs, position])
                     for(let j = 0; j < p.correct_songs.length; j++){
                         const {song, answer} = p.correct_songs[j]
-                        const ordinal = song_list_with_ordinal[JSON.stringify(song)]
+                        const ordinal = song_list_with_ordinal[song.id]
                         this.conn.run(`
                         INSERT into gameplayertocorrect VALUES(
                         ?,
@@ -966,7 +966,7 @@ class Database{
                     }
                     for(let j = 0; j < p.wrong_songs.length; j++){
                         const {song, answer} = p.wrong_songs[j]
-                        const ordinal = song_list_with_ordinal[JSON.stringify(song)]
+                        const ordinal = song_list_with_ordinal[song.id]
                         this.conn.run(`
                         INSERT into gameplayertomissed VALUES(
                         ?,

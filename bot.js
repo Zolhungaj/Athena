@@ -79,7 +79,6 @@ class Bot{
     start = (settings=this.settings, database=this.database, leaderboard=this.leaderboard) => {
         
         let stillon = true
-        const terminateListener = this.events.on("terminate", () => {stillon = false})
         const db = new Database(database)
         const theChat = new ChatController(this.socket, this.events, this.username, this.debug)
         theChat.start()
@@ -87,15 +86,16 @@ class Bot{
         const theGame = new Game(this.socket, this.events, db)
         const theChatMonitor = new ChatMonitor(this.socket, this.events, db, this.username, leaderboard)
         const theSocialManager = new SocialManager(this.socket, this.events, db)
+        const terminateListener = this.events.on("terminate", () => {stillon = false}) //should be the last listener to recieve the terminate command
         const forcedLogOffListener = this.socket.on(EVENTS.FORCED_LOGOFF, ({reason}) => {
-            events.emit("terminate")
+            this.events.emit("terminate")
             console.log("forced logged off", reason)
         })
         const serverRestartListener = this.socket.on(EVENTS.SERVER_RESTART, ({time, msg}) => {
             serverRestartListener.destroy()
             const milliseconds = (time*60-30)*1000
             setTimeout(() => {
-                events.emit("terminate")
+                this.events.emit("terminate")
                 console.log("server restarted", msg)
             }, milliseconds)
         })
@@ -118,7 +118,7 @@ class Bot{
                 setTimeout(tick, 1000)
                 return
             }else{
-                destroy()
+                setTimeout(destroy, 1000) //should give everyone ample time to do their cleanup
             }
         }
         tick()

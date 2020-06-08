@@ -107,7 +107,7 @@
     "help_about": [ "Writes some information about the bot." ],
     "help_addadmin": [ "Usage: addadmin [username]| Adds a new admin to the bot." ],
     "help_addmoderator": [ "Usage: addmoderator [username]| Adds a new moderator to the bot." ],
-    "help_admin": [ "Admin commands: stop, addadmin, ban" ],
+    "help_admin": [ "Admin commands: stop, addadmin, addmoderator, ban, say" ],
     "help_ban": [ "Usage: ban [username] <reason>| Kicks the user and bans them until the bot is restarted, they are then kicked upon rejoining." ],
     "help_forceevent": [ "Usage: forceevent| Sets the timer to 1, resulting an immediate activation of time activated events." ],
     "help_help": [ "Prints the help menu. Help <command> to get the command information, though you probably knew that already." ],

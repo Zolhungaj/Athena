@@ -127,6 +127,10 @@ class ChatMonitor {
         const parts = command.split(" ")
 
         switch(parts[0].toLowerCase()) {
+            case "0\\":
+            case "o\\":
+                this.chat("( ͡° ͜ʖ ͡°)")
+                break
             case "help":
                 const possibility = this.premadeMessages[("help_"+parts[1]).toLowerCase()]
                 if(possibility){
@@ -168,6 +172,7 @@ class ChatMonitor {
                 this.db.get_last_game(sender, ret2)
                 break
             case "answer":
+            case "a":
                 if(parts[1]){
                     const answer = parts.slice(1).join(" ").trim()
                     if(answer){
@@ -191,7 +196,7 @@ class ChatMonitor {
                     this.autoChat("usage_answer")
                 }
                 break
-            case "answeranime":
+            case "answeranime": //since anime is at the front of the answer command it doesn't need its own shortening
                 if(parts[1]){
                     const answer = parts.slice(1).join(" ").trim()
                     if(answer){
@@ -205,6 +210,8 @@ class ChatMonitor {
                 }
                 break
             case "answersong":
+            case "answers":
+            case "as":
                 if(parts[1]){
                     const answer = parts.slice(1).join(" ").trim()
                     if(answer){
@@ -218,6 +225,8 @@ class ChatMonitor {
                 }
                 break
             case "answerartist":
+            case "answera":
+            case "aa":
                 if(parts[1]){
                     const answer = parts.slice(1).join(" ").trim()
                     if(answer){
