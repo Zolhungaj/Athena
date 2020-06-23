@@ -55,7 +55,7 @@ class ChatController {
                 this.socket.social.addFriend(name)
                 this.autoChat("must_be_friend", [name])
             }else{
-                console.log("unknown alert")
+                console.log("unknown alert:", alert)
             }
         })
     }

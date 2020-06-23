@@ -23,7 +23,7 @@ async function main() {
 
     for(let i = 0; i < fields.length; i++){
         const field = fields[i]
-        const bot = new Bot(field.username, field.password, field.database, JSON.parse(field.settings.replace(new RegExp("'", "g"), '"')), field.leaderboard, slaves, field.isSlave)
+        const bot = new Bot(field.username, field.password, field.database, JSON.parse(field.settings.replace(new RegExp("'", "g"), '"')), field.leaderboard, slaves, field.isSlave, false)
         bots.push(bot)
         await bot.connect()
         if(field.isSlave.toLowerCase()==="true"){

@@ -1,5 +1,6 @@
 const {SocketWrapper, getToken, EVENTS, sleep} = require('./node/amq-api')
 const fs = require("fs")
+const util = require('util');
 class ChatMonitor {
     constructor(socket, events, db, selfName, leaderboardType) {
         this.socket = socket
