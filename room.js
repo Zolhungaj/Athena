@@ -378,7 +378,7 @@ class Room {
         }
     }
 
-    specatorNameChanged = (data) => {
+    spectatorNameChanged = (data) => {
         //data.
         //     oldName //string
         //     newName //string

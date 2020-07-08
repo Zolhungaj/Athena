@@ -5,7 +5,7 @@
         "ARCS.CRDNL.ANCRD Alpha 0.8.7 build 63673140", 
         "YKI.NGTO Human Interface", 
         "AMQ contest bot, \"Athena\"" ],
-    "about": [ "This bot is created by @Zolhungaj. With some good help from Juvian's unofficial-api" ],
+    "about": [ "This bot is created by @Zolhungaj. With some good help from Juvian's unofficial-api. https://github.com/Zolhungaj/Athena" ],
     "already_done": [ "@&1, you have already gotten your missed list." ],
     "answer_reveal": [
         "&1 was at the tip of my tongue!",
