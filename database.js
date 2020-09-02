@@ -142,13 +142,13 @@ class Database{
                 reject("create_player: username must be string")
                 return
             }
-            const ret = (err) => {//err is ignored
-                this.get_player_id(username).then(id => {resolve(id)}).catch(err => {reject(err)})
+            const success = (err) => {//err is ignored
+                this.get_player_id(username).then(id => {resolve(id)}).catch(err => {reject("create_player->" + err)})
             }
             this.conn.run(`INSERT INTO player (username, truename) VALUES(
             (?),
             ?
-            )`, [username.toLowerCase(), username], ret)
+            )`, [username.toLowerCase(), username], success)
         })
     }
 
@@ -158,7 +158,7 @@ class Database{
                 reject("change_name: all parametres must be strings")
                 return
             }
-            const ret = (err) => {
+            const success = (err) => {
                 if (err) reject(err)
                 else resolve()
             }
@@ -169,7 +169,7 @@ class Database{
                 SET username = ?,
                 truename = ?
                 WHERE username = ?
-            `, [new_username, new_name, old_name], ret)
+            `, [new_username, new_name, old_name], success)
         })
     }
 
@@ -179,11 +179,11 @@ class Database{
                 reject("get_player_id: username must be string")
                 return
             }
-            const ret = (err, row) => {
+            const success = (err, row) => {
                 if(err) reject(err)
                 else resolve(row?row.player_id:null)
             }
-            this.conn.get(`SELECT player_id FROM player WHERE username=(?)`, [username.toLowerCase()], ret)
+            this.conn.get(`SELECT player_id FROM player WHERE username=(?)`, [username.toLowerCase()], success)
 
         })
     }
@@ -196,27 +196,27 @@ class Database{
                 }else{
                     this.create_player(username).then(id => { resolve(id) }).catch(err => { reject(err) })
                 }
-            }).catch(err => { reject(err) })
+            }).catch(err => { reject("get_or_create_player_id->" + err) })
         })
     }
 
     get_player_username(player_id){
         return new Promise((resolve, reject) => {
-            const ret = (err, row) => {
+            const success = (err, row) => {
                 if (err) reject(err)
                 else resolve(row?row.username:null)
             }
-            this.conn.get(`SELECT username FROM player WHERE player_id=(?)`, [player_id], ret)
+            this.conn.get(`SELECT username FROM player WHERE player_id=(?)`, [player_id], success)
         })
     }
 
     get_player_truename(player_id){
         return new Promise((resolve, reject) => {
-            const ret = (err, row) => {
+            const success = (err, row) => {
                 if(err) reject(err)
                 else resolve(row?row.truename:null)
             }
-            this.conn.get(`SELECT truename FROM player WHERE player_id=(?)`, [player_id], ret)
+            this.conn.get(`SELECT truename FROM player WHERE player_id=(?)`, [player_id], success)
         })
     }
 
@@ -234,17 +234,17 @@ class Database{
                         })
                     })
                 }
-            })
+            }).catch(err => {reject("get_player->" + err)})
         })
     }
 
     get_player_level(player_id){
         return new Promise((resolve, reject) => {
-            const ret = (err, row) => {
+            const success = (err, row) => {
                 if (err) reject(err)
                 resolve(row?row.level:null)
             }
-            this.conn.get(`SELECT level FROM level WHERE player_id=(?)`, [player_id], ret)
+            this.conn.get(`SELECT level FROM level WHERE player_id=(?)`, [player_id], success)
         })
         
     }
@@ -255,24 +255,24 @@ class Database{
                 if (err) reject(err)
                 else resolve()
             }
-            const ret = (err) => {
+            const step2 = (err) => {
                 if(err){
                     this.conn.run("UPDATE level SET level = ? WHERE player_id = ?", [new_level, player_id], success)
                 }else{
                     resolve()
                 }
             }
-            this.conn.run("INSERT INTO level (player_id, level) VALUES(?,?)", [player_id, new_level], ret)
+            this.conn.run("INSERT INTO level (player_id, level) VALUES(?,?)", [player_id, new_level], step2)
         })
     }
 
     get_player_avatar(player_id){
         return new Promise((resolve, reject) =>{
-            const ret = (err, row) => {
+            const success = (err, row) => {
                 if (err) reject(err)
                 else resolve(row?JSON.parse(row.avatar):null)
             }
-            this.conn.get(`SELECT avatar FROM avatar WHERE player_id=(?)`, [player_id], ret)
+            this.conn.get(`SELECT avatar FROM avatar WHERE player_id=(?)`, [player_id], success)
         })
     }
 
@@ -283,14 +283,14 @@ class Database{
                 if (err) reject(err)
                 else resolve()
             }
-            const ret = (err) => {
+            const step2 = (err) => {
                 if(err){
                     this.conn.run("UPDATE avatar SET avatar = ? WHERE player_id = ?", [new_avatar, player_id], success)
                 }else{
                     resolve()
                 }
             }
-            this.conn.run("INSERT INTO avatar (player_id, avatar) VALUES(?,?)", [player_id, new_avatar], ret)
+            this.conn.run("INSERT INTO avatar (player_id, avatar) VALUES(?,?)", [player_id, new_avatar], step2)
         })
     }
 
@@ -314,7 +314,7 @@ class Database{
     ban_player(username, reason=null, banner=null){   
         return new Promise((resolve, reject) =>{ 
             this.get_or_create_player_id(username).then(player_id => {
-                const ret = (banner_id) => {
+                const success = (banner_id) => {
                     const success = (err) => {
                         if (err) reject(err)
                         else resolve()
@@ -328,9 +328,9 @@ class Database{
                     )`, [player_id, reason, banner_id], success)
                 }
                 if(banner){
-                    this.get_or_create_player_id(banner).then(id => {ret(id)})
+                    this.get_or_create_player_id(banner).then(id => {success(id)})
                 }else{
-                    ret(0)
+                    success(0)
                 }
             })
             
@@ -364,7 +364,6 @@ class Database{
                 if (err) reject(err)
                 else resolve(row?true:false)
             }
-            this.get_player_id(username, ret)
             this.conn.run(`
                 SELECT player_id FROM banned
                 NATURAL JOIN player
@@ -375,7 +374,7 @@ class Database{
 
     ban_readable(username=null, banner=null, callback){
         return new Promise((resolve, reject) =>{ 
-            const ret = (err, rows) => {
+            const success = (err, rows) => {
                 if (err) reject(err)
                 else resolve(rows)
             }
@@ -389,33 +388,37 @@ class Database{
             if (username){
                 if (banner){
                     query += "WHERE p.username = ? AND p2.username = ?;"
-                    this.conn.all(query, [username, banner], ret)
+                    this.conn.all(query, [username, banner], success)
                 } else{
                     query += "WHERE p.username = ?;"
-                    this.conn.all(query, [username], ret)
+                    this.conn.all(query, [username], success)
                 }
             }else if (banner){
                 query += "WHERE p2.username = ?;"
-                this.conn.all(query, [banner], ret)
+                this.conn.all(query, [banner], success)
             }else{
-                this.conn.all(query+";", [], ret)
+                this.conn.all(query+";", [], success)
             }
         })
     }
 
     add_administrator(username, source=undefined){
-        return new Promise((resolve, reject) =>{ 
+        return new Promise((resolve, reject) => { 
+            const execute = (player_id, source_id) => {
+                const success = (err) => {
+                    if (err) reject(err)  // this probably means the administrator already exists
+                    else resolve()
+                }
+                this.conn.run(`INSERT INTO administrator (player_id, source) VALUES(
+                    ?,
+                    ?
+                    )`, [player_id, source_id], success)
+            }
             this.get_or_create_player_id(username).then(player_id => {
                 this.get_player_id(source).then(source_id => {
-                    source_id = source_id || 0
-                    const success = (err) => {
-                        if (err) reject(err)  // this probably means the administrator already exists
-                        else resolve()
-                    }
-                    this.conn.run(`INSERT INTO administrator (player_id, source) VALUES(
-                        ?,
-                        ?
-                        )`, [player_id, source_id], success)
+                    execute(player_id, source_id)
+                }).catch(() => {
+                    execute(player_id, 0)
                 })
             })
         
@@ -633,7 +636,7 @@ class Database{
 
     get_song_id(song){
         return new Promise((resolve, reject) => {
-            const ret = (err, row) => {
+            const success = (err, row) => {
                 if (err) reject(err)
                 else resolve(row?row.song_id:null)
             }
@@ -649,7 +652,7 @@ class Database{
                     artist = ?
                 AND
                     link = ?
-            `, [song.anime, song.type, song.name, song.artist, song.link], ret)
+            `, [song.anime, song.type, song.name, song.artist, song.link], success)
         })
     }
 
@@ -745,7 +748,7 @@ class Database{
         return new Promise((resolve, reject) => {
             const success = (err, row) => {
                 if (err) reject(err)
-                else resolve(row?row.count:null)
+                else resolve(row?row.count:0)
             }
             this.conn.get(`
                 SELECT count(*) as count FROM game
@@ -757,7 +760,7 @@ class Database{
         return new Promise((resolve, reject) => {
             const success = (err, row) => {
                 if (err) reject(err)
-                else resolve(row?row.count:null)
+                else resolve(row?row.count:0)
             }
             this.conn.get(`
                 SELECT count(*) as count
@@ -771,7 +774,7 @@ class Database{
         return new Promise((resolve, reject) => {
             const success = (err, row) => {
                 if (err) reject(err)
-                else resolve(row?row.count:null)
+                else resolve(row?row.count:0)
             }
             this.conn.get(`
             SELECT count(*) as count 
@@ -926,7 +929,7 @@ class Database{
                     reject(err)
                 }else{
                     this.conn.run(`
-                        INSERT INTO elodiff (game_id, player_id, diff) VALUES(
+                        INSERT INTO elodiff (game_id, player_id, rating_change) VALUES(
                         ?,
                         ?,
                         ?
@@ -996,7 +999,7 @@ class Database{
                 NATURAL JOIN gamesong
                 NATURAL JOIN song
                 WHERE username = $username
-                AND game_id = (SELECT MAX(game_id) FROM gameplayerNATURAL JOIN player p WHERE p.username = $username)
+                AND game_id = (SELECT MAX(game_id) FROM gameplayer NATURAL JOIN player p WHERE p.username = $username)
                 ORDER BY ordinal ASC
             `, {$username: username.toLowerCase(), }, success)
         })
@@ -1021,7 +1024,7 @@ class Database{
                 WHERE username = $username AND correct = 0
                 AND game_id = (select MAX(game_id) from gameplayer NATURAL JOIN player p where p.username = $username)
                 ORDER by ordinal ASC
-            `, {$username: username, }, success)
+            `, {$username: username.toLowerCase(), }, success)
         })
     }
 
@@ -1160,7 +1163,7 @@ class Database{
             const target = player_ids.length
             let counter = 0
             const func = (elos) => {
-                this.get_or_create_elo(player_ids[counter], ret).then(elo => {
+                this.get_or_create_elo(player_ids[counter]).then(elo => {
                     elos.push(elo)
                     counter++
                     if(counter >= target){

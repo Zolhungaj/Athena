@@ -39,7 +39,7 @@ class ChatMonitor {
                 this.blacklistedWords.push({regex, reason})
             }
         })
-        db.create_player(selfName).then(() => {db.add_administrator(selfName)}) //make sure bot doesn't do something stupid like banning itself
+        db.create_player(selfName).then(() => {db.add_administrator(selfName).catch(() =>{})}) //make sure bot doesn't do something stupid like banning itself
     }
 
     destroy = () => {
@@ -267,17 +267,17 @@ class ChatMonitor {
                 }
                 let rows = []
                 if(parts[1]){
-                    this.isModerator(sender, () => {
-                        if(isNaN(parts[1])){
+                    if(await this.isModerator(sender) || await this.isAdmin(sender)){
+                        if(isNaN(parts[1]))
                             this.autoChat("nan", [parts[1]])
-                        }
-                        else{
-                            leaderboardfunc(Number(parts[1]), ret3)
-                        }
-                    }, () => {this.autoChat("permission_denied", [sender])})
-                }else{
-                    leaderboardfunc(undefined, ret3)
-                }
+                        else
+                            rows = await leaderboardfunc(Number(parts[1]))
+                    }
+                    else
+                        this.autoChat("permission_denied", [sender])
+                }else
+                    rows = await leaderboardfunc()
+                
                 if(rows){
                     this.autoChat("leaderboard", [rows.length])
                     for(let i = 0; i < rows.length; i++){
@@ -511,7 +511,7 @@ class ChatMonitor {
 
         const song_count = await this.db.get_player_song_count(player_id)
         this.autoChat("profile_song_count", [song_count])
-        
+
         const hit_count = await this.db.get_player_hit_count(player_id)
         this.autoChat("profile_hit_count", [hit_count])
 

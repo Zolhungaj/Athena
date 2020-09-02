@@ -23,7 +23,7 @@ async function main() {
 
     for(let i = 0; i < fields.length; i++){
         const field = fields[i]
-        const bot = new Bot(field.username, field.password, field.database, JSON.parse(field.settings.replace(new RegExp("'", "g"), '"')), field.leaderboard, slaves, field.isSlave, false)
+        const bot = new Bot(field.username, field.password, field.database, JSON.parse(field.settings.replace(new RegExp("'", "g"), '"')), field.leaderboard, slaves, field.isSlave, true)
         bots.push(bot)
         await bot.connect()
         if(field.isSlave.toLowerCase()==="true"){
@@ -92,7 +92,7 @@ class Bot{
             console.log("forced logged off", reason)
         })
         const serverRestartListener = this.socket.on(EVENTS.SERVER_RESTART, ({time, msg}) => {
-            serverRestartListener.destroy()
+            this.serverRestartListener.destroy()
             const milliseconds = (time*60-30)*1000
             setTimeout(() => {
                 this.events.emit("terminate")
@@ -101,15 +101,15 @@ class Bot{
         })
         this.socket.roomBrowser.host(settings)
         const destroy = () => {
-            terminateListener.destroy()
-            db.destroy()
-            theChat.destroy()
-            theRoom.destroy()
-            theGame.destroy()
-            theChatMonitor.destroy()
-            theSocialManager.destroy()
-            forcedLogOffListener.destroy()
-            serverRestartListener.destroy()
+            this.terminateListener.destroy()
+            this.db.destroy()
+            this.theChat.destroy()
+            this.theRoom.destroy()
+            this.theGame.destroy()
+            this.theChatMonitor.destroy()
+            this.theSocialManager.destroy()
+            this.forcedLogOffListener.destroy()
+            this.serverRestartListener.destroy()
         }
 
         const tick = () =>{

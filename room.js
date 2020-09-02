@@ -237,7 +237,7 @@ class Room {
         delete this.spectators[name]
     }
 
-    playerJoined = async (playerData, wasSpectator=false, wasPlayer=false) => {
+    playerJoined = (playerData, wasSpectator=false, wasPlayer=false) => {
         //playerData.
         //           name          //string, unique
         //           level         //integer
@@ -266,7 +266,7 @@ class Room {
         const player = new Player(playerData.name, playerData.level, playerData.avatar, playerData.ready, playerData.gamePlayerId)
         this.players[player.name] = player
         this.ready_backup["" + player.gamePlayerId]
-        this.db.get_player(playerData.name).then(({player_id, banned, level, avatar}) => {
+        this.db.get_player(playerData.name).then(async ({player_id, banned, level, avatar}) => {
             if(banned) {
                 this.kick(player.name)
                 return
@@ -296,12 +296,12 @@ class Room {
         
     }
     
-    spectatorJoined = async (spectator, wasSpectator=false, wasPlayer=false) => {
+    spectatorJoined = (spectator, wasSpectator=false, wasPlayer=false) => {
         //spectator.
         //          name         // string
         //          gamePlayerId // integer but always null
         //player = database.getSpectator(spectator.name)
-        this.db.get_player(spectator.name).then(({player_id, banned}) => {
+        this.db.get_player(spectator.name).then(async ({player_id, banned}) => {
             if(banned) {
                 this.kick(spectator.name)
                 return
