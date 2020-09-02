@@ -115,16 +115,16 @@ class Database{
         );`)
         
         
-        this.conn.run(`INSERT INTO player VALUES(
+        this.conn.run(`INSERT INTO player (player_id, username, truename) VALUES(
             0,
             '<system>',
             '<System>'
         );`, [], this.dud)
-        this.conn.run(`INSERT INTO administrator VALUES(
+        this.conn.run(`INSERT INTO administrator (player_id, source) VALUES(
             0,
             NULL
             );`, [], this.dud)
-        this.conn.run(`INSERT INTO moderator VALUES(
+        this.conn.run(`INSERT INTO moderator (player_id, source) VALUES(
             0,
             NULL
             );`, [], this.dud)
@@ -140,8 +140,7 @@ class Database{
         const ret = (err) => {
             this.get_player_id(username, callback)
         }
-        this.conn.run(`INSERT INTO player VALUES(
-        NULL,
+        this.conn.run(`INSERT INTO player (username, truename) VALUES(
         (?),
         ?
         )`, [username.toLowerCase(), username], ret)
@@ -167,7 +166,7 @@ class Database{
         const ret = (err, row) => {
             callback(row?row.player_id:null)
         }
-        this.conn.get(`SELECT id FROM player WHERE username=(?)`, [username.toLowerCase()], ret)
+        this.conn.get(`SELECT player_id FROM player WHERE username=(?)`, [username.toLowerCase()], ret)
     }
 
     get_or_create_player_id(username, callback){
@@ -185,14 +184,14 @@ class Database{
         const ret = (err, row) => {
             callback(row?row.username:null)
         }
-        this.conn.get(`SELECT username FROM player WHERE id=(?)`, [player_id], ret)
+        this.conn.get(`SELECT username FROM player WHERE player_id=(?)`, [player_id], ret)
     }
 
     get_player_truename(player_id, callback){
         const ret = (err, row) => {
             callback(row?row.truename:null)
         }
-        this.conn.get(`SELECT truename FROM player WHERE id=(?)`, [player_id], ret)
+        this.conn.get(`SELECT truename FROM player WHERE player_id=(?)`, [player_id], ret)
     }
 
     get_player(username, callback){
@@ -233,7 +232,7 @@ class Database{
                 callback(true)
             }
         }
-        this.conn.run("INSERT INTO level VALUES(?,?)", [player_id, new_level], ret)
+        this.conn.run("INSERT INTO level (player_id, level) VALUES(?,?)", [player_id, new_level], ret)
     }
 
     get_player_avatar(player_id, callback){
@@ -255,7 +254,7 @@ class Database{
                 callback(true)
             }
         }
-        this.conn.run("INSERT INTO avatar VALUES(?,?)", [player_id, new_avatar], ret)
+        this.conn.run("INSERT INTO avatar (player_id, avatar) VALUES(?,?)", [player_id, new_avatar], ret)
     }
 
     save_message(username, message, callback=this.dud){
@@ -264,8 +263,7 @@ class Database{
                 callback(!err)
             }
             this.conn.run(`
-                INSERT INTO message VALUES(
-                NULL,
+                INSERT INTO message (player_id, time, content) VALUES(
                 (?),
                 DATETIME('now'),
                 (?)
@@ -281,7 +279,7 @@ class Database{
                     callback(!err)
                 }
                 this.conn.run(`
-                    INSERT INTO banned VALUES(
+                    INSERT INTO banned (player_id, reason, banner_id) VALUES(
                     (?),
                     (?),
                     (?)
@@ -356,7 +354,7 @@ class Database{
                 const success = (err) => {
                     callback(!err)
                 }
-                this.conn.run(`INSERT INTO administrator VALUES(
+                this.conn.run(`INSERT INTO administrator (player_id, source) VALUES(
                     ?,
                     ?
                     )`, [player_id, source_id], success)
@@ -397,7 +395,7 @@ class Database{
                 const success = (err) => {
                     callback(!err)
                 }
-                this.conn.run(`INSERT INTO moderator VALUES(
+                this.conn.run(`INSERT INTO moderator (player_id, source) VALUES(
                     ?,
                     ?
                     )`, [player_id, source_id], success)
@@ -450,7 +448,7 @@ class Database{
         const outer_ret = (player_id) => {
             const inner_ret = (referer_id) => {
                 referer_id = referer_id || 0
-                this.conn.run(`INSERT INTO valour VALUES(
+                this.conn.run(`INSERT INTO valour (player_id, surplus, referer_id) VALUES(
                     ?,
                     2,
                     ?
@@ -587,8 +585,7 @@ class Database{
                 callback(res)
             }else{
                 this.conn.run(`
-                    INSERT INTO song VALUES(
-                    NULL,
+                    INSERT INTO song (anime, type, title, artist, link) VALUES(
                     ?,
                     ?,
                     ?,
@@ -610,15 +607,14 @@ class Database{
             }else{
                 this.conn.get(`
                     SELECT game_id FROM game
-                    ORDER BY id DESC
+                    ORDER BY game_id DESC
                     LIMIT 1
                 `, [], step3)
             }
         }
         //step1:
         this.conn.run(`
-        INSERT INTO game VALUES(
-        NULL,
+        INSERT INTO game (song_count, player_count, time) VALUES(
         ?,
         ?,
         DATETIME('now')
@@ -631,7 +627,7 @@ class Database{
         }
         const ret = (song_id) => {
             this.conn.run(`
-            INSERT INTO gamesong VALUES(
+            INSERT INTO gamesong (game_id, song_id, ordinal) VALUES(
             ?,
             ?,
             ?
@@ -775,7 +771,7 @@ class Database{
                 callback(elo)
             }else{
                 this.conn.run(`
-                    INSERT INTO elo VALUES(
+                    INSERT INTO elo (player_id, rating) VALUES(
                     ?,
                     ?
                     )`, [player_id, this.default_elo], ret2)
@@ -799,7 +795,7 @@ class Database{
                 callback(false)
             }else{
                 this.conn.run(`
-                    INSERT INTO elodiff VALUES(
+                    INSERT INTO elodiff (game_id, player_id, diff) VALUES(
                     ?,
                     ?,
                     ?
@@ -907,7 +903,7 @@ class Database{
                         return
                     }
                     this.conn.run(`
-                    INSERT into gameplayer (game_id, player_id, correct_songs, missed_songs, position) VALUES(
+                    INSERT INTO gameplayer (game_id, player_id, correct_songs, missed_songs, position) VALUES(
                     ?,
                     ?,
                     ?,
@@ -918,23 +914,25 @@ class Database{
                         const {song, answer} = p.correct_songs[j]
                         const ordinal = song_list_with_ordinal[song.id]
                         this.conn.run(`
-                        INSERT into gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
+                        INSERT INTO gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
                         ?,
                         ?,
                         ?,
-                        ?
-                        )`, [game_id, player_id, ordinal, answer, 1])
+                        ?,
+                        1
+                        )`, [game_id, player_id, ordinal, answer])
                     }
                     for(let j = 0; j < p.wrong_songs.length; j++){
                         const {song, answer} = p.wrong_songs[j]
                         const ordinal = song_list_with_ordinal[song.id]
                         this.conn.run(`
-                        INSERT into gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
+                        INSERT INTO gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
                         ?,
                         ?,
                         ?,
-                        ?
-                        )`, [game_id, player_id, ordinal, answer, 0])
+                        ?,
+                        0
+                        )`, [game_id, player_id, ordinal, answer])
                     }
 
                 }
