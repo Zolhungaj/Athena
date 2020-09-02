@@ -266,7 +266,7 @@ class Game {
             playerList.push(this.players[name])
         }
         this.printBonus()
-        this.db.record_game(this.songList, playerList)
+        this.db.record_game(this.songList, playerList).catch((err) => {this.autoChat("recording_failed", [err])})
         this.quizDone()
     }
 
@@ -281,7 +281,7 @@ class Game {
             playerList.push(this.players[name])
         }
         this.printBonus()
-        this.db.record_game(this.songList, playerList)
+        this.db.record_game(this.songList, playerList).catch((err) => {this.autoChat("recording_failed", [err])})
     }
 
     printBonus = () => {

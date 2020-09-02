@@ -179,10 +179,9 @@ class Room {
         for (let name in this.players){
             if(this.players[name].gamePlayerId === data.gamePlayerId){
                 this.players[name].avatar = data.avatar
-                const ret = (player_id) => {
+                this.db.get_player_id(name).then(player_id => {
                     this.db.update_player_avatar(player_id, data.avatar)
-                }
-                this.db.get_player_id(name, ret)
+                })
                 this.events.emit("player changed avatar", name, data.avatar)
             }
         }
@@ -238,7 +237,7 @@ class Room {
         delete this.spectators[name]
     }
 
-    playerJoined = (playerData, wasSpectator=false, wasPlayer=false) => {
+    playerJoined = async (playerData, wasSpectator=false, wasPlayer=false) => {
         //playerData.
         //           name          //string, unique
         //           level         //integer
@@ -264,24 +263,18 @@ class Room {
         //                             backgroundHori //string/filename
         //                             backgroundVert //string/filename
         //                             outfitName     //string
-        const ret = ({player_id, banned, level, avatar}, newPlayer=false) => {
-
-            const player = new Player(playerData.name, playerData.level, playerData.avatar, playerData.ready, playerData.gamePlayerId)
-            console.log(playerData)
-            if (!player_id) {
-                const a = (player_id) => {
-                    ret({player_id, banned, level, avatar}, true)
-                }
-                this.db.create_player(playerData.name, a)
-                return
-            }
+        const player = new Player(playerData.name, playerData.level, playerData.avatar, playerData.ready, playerData.gamePlayerId)
+        this.players[player.name] = player
+        this.ready_backup["" + player.gamePlayerId]
+        this.db.get_player(playerData.name).then(({player_id, banned, level, avatar}) => {
             if(banned) {
                 this.kick(player.name)
                 return
-            }else{
-                this.players[player.name] = player
-                this.ready_backup["" + player.gamePlayerId]
             }
+            const newPlayer = !player_id
+            player_id = player_id || await this.db.create_player(playerData.name)
+            //console.log(playerData)
+            
             let changedLevel = 0
             if (player.level !== level){
                 this.db.update_player_level(player_id, player.level)
@@ -290,8 +283,8 @@ class Room {
                 }
             }
             let changedAvatar = false
-            console.log(JSON.stringify(player.avatar))
-            console.log(JSON.stringify(avatar))
+            //console.log(JSON.stringify(player.avatar))
+            //console.log(JSON.stringify(avatar))
             if (JSON.stringify(player.avatar) !== JSON.stringify(avatar)){
                 this.db.update_player_avatar(player_id, player.avatar)
                 if(avatar){
@@ -299,31 +292,25 @@ class Room {
                 }
             }
             this.events.emit("new player", {player, wasSpectator, changedLevel, changedAvatar, wasPlayer, newPlayer})
-        }
-        this.db.get_player(playerData.name, ret)
+        })
+        
     }
     
-    spectatorJoined = (spectator, wasSpectator=false, wasPlayer=false) => {
+    spectatorJoined = async (spectator, wasSpectator=false, wasPlayer=false) => {
         //spectator.
         //          name         // string
         //          gamePlayerId // integer but always null
         //player = database.getSpectator(spectator.name)
-        const ret = ({player_id, banned}, newPlayer=false) => {
-            if (!player_id) {
-                const a = (player_id) => {
-                    ret({player_id, banned}, true)
-                }
-                this.db.create_player(spectator.name, a)
-                return
-            }
+        this.db.get_player(spectator.name).then(({player_id, banned}) => {
             if(banned) {
                 this.kick(spectator.name)
-            }else{
-                this.spectators[spectator.name] = {name: spectator.name, banned}
-                this.events.emit("new spectator", {name: spectator.name, wasSpectator, wasPlayer, newPlayer})
+                return
             }
-        }
-        this.db.get_player(spectator.name, ret)
+            const newPlayer = !player_id
+            player_id = player_id || await this.db.create_player(spectator.name)
+            this.spectators[spectator.name] = {name: spectator.name, banned}
+            this.events.emit("new spectator", {name: spectator.name, wasSpectator, wasPlayer, newPlayer})
+        })
     }
 
     spectatorChangedToPlayer = (player) => {

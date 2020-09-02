@@ -39,7 +39,7 @@ class ChatMonitor {
                 this.blacklistedWords.push({regex, reason})
             }
         })
-        db.create_player(selfName, () => db.add_administrator(selfName)) //make sure bot doesn't do something stupid like banning itself
+        db.create_player(selfName).then(() => {db.add_administrator(selfName)}) //make sure bot doesn't do something stupid like banning itself
     }
 
     destroy = () => {
@@ -124,7 +124,7 @@ class ChatMonitor {
 
     }
 
-    handleCommand = (sender, command) => {
+    handleCommand = async (sender, command) => {
         const parts = command.split(" ")
 
         switch(parts[0].toLowerCase()) {
@@ -135,12 +135,14 @@ class ChatMonitor {
             case "help":
                 const possibility = this.premadeMessages[("help_"+parts[1]).toLowerCase()]
                 if(possibility){
-                    console.log(possibility)
+                    //console.log(possibility)
                     this.chat(possibility[0])
                 }else{
                     this.autoChat("help")
-                    this.isAdmin(sender, () => {this.autoChat("help_admin")})
-                    this.isModerator(sender, () => {this.autoChat("help_moderator")})
+                    if (await this.isAdmin(sender))
+                        this.autoChat("help_admin")
+                    if (await this.isModerator(sender))
+                        this.autoChat("help_moderator")
                 }
                 break
             case "lobby":
@@ -154,23 +156,21 @@ class ChatMonitor {
                 }
                 break
             case "missed":
-                const ret = (rows) => {
+                this.db.get_missed_last_game(sender).then(rows => {
                     for(let i = 0; i < rows.length; i++){
                         const {anime, type, title, artist, link, answer} = rows[i]
                         this.autopm(sender, "song", [anime, type, title, artist, link])
                         this.autopm(sender, "you_answered",[answer] )
                     }
-                }
-                this.db.get_missed_last_game(sender, ret)
+                })
                 break
             case "list":
-                const ret2 = (rows) => {
+                this.db.get_last_game(sender).then(rows => {
                     for(let i = 0; i < rows.length; i++){
                         const {anime, type, title, artist, link} = rows[i]
                         this.autopm(sender, "song", [anime, type, title, artist, link])
                     }
-                }
-                this.db.get_last_game(sender, ret2)
+                })
                 break
             case "answer":
             case "a":
@@ -242,24 +242,16 @@ class ChatMonitor {
                 break
             case "profile":
                 if(parts[1]){
-                    this.isModerator(sender, () => {this.profile(parts[1])}, () => {this.autoChat("permission_denied", [sender])} )
+                    if(await this.isModerator(sender))
+                        this.profile(parts[1])
+                    else
+                        this.autoChat("permission_denied", [sender])
                 }else{
                     this.profile(sender)
                 }
                 break
             case "leaderboard":
-                const ret3 = (rows) => {
-                    if(rows){
-                        this.autoChat("leaderboard", [rows.length])
-                    }
-                    for(let i = 0; i < rows.length; i++){
-                        const pos = i + 1
-                        const truename = rows[i].truename
-                        const score = rows[i][this.leaderboardType]
-                        this.chat(pos + ":" + " " + truename + ", " + score)
-                    }
-                }
-                let leaderboardfunc = () => {} //empty func so not everything dies if this doesn't get defined
+                let leaderboardfunc = async () => {return []} //empty func so not everything dies if this doesn't get defined
                 switch(this.leaderboardType){
                     case "rating": //this is the elo rating
                         leaderboardfunc = this.db.get_elo_leaderboard
@@ -271,8 +263,9 @@ class ChatMonitor {
                         //leaderboardfunc = this.db.get_score_leaderboard
                         //break
                     default:
-                        leaderboardfunc = () => { this.autoChat("leaderboard_disabled") }
+                        leaderboardfunc = async () => { this.autoChat("leaderboard_disabled"); return []}
                 }
+                let rows = []
                 if(parts[1]){
                     this.isModerator(sender, () => {
                         if(isNaN(parts[1])){
@@ -285,91 +278,102 @@ class ChatMonitor {
                 }else{
                     leaderboardfunc(undefined, ret3)
                 }
+                if(rows){
+                    this.autoChat("leaderboard", [rows.length])
+                    for(let i = 0; i < rows.length; i++){
+                        const pos = i + 1
+                        const truename = rows[i].truename
+                        const score = rows[i][this.leaderboardType]
+                        this.chat(pos + ":" + " " + truename + ", " + score)
+                    }
+                }
                 break
             case "say":
-                this.isAdmin(sender, () => {this.chat(parts.slice(1).join(" "))}, () => {this.autoChat("permission_denied", [sender])})
+                if(await this.isAdmin(sender))
+                    this.chat(parts.slice(1).join(" "))
+                else
+                    this.autoChat("permission_denied", [sender])
                 break
             case "stop":
-                this.isAdmin(sender, () => {this.events.emit("terminate")}, () => {this.autoChat("permission_denied", [sender])})
+                if(await this.isAdmin(sender))
+                    this.events.emit("terminate")
+                else
+                    this.autoChat("permission_denied", [sender])
                 break
             case "addadmin":
-                this.isAdmin(sender, () => {
+                if(await this.isAdmin(sender)){
                     if(parts[1]){
-                        this.db.add_administrator(parts[1], sender, (bool) => {
-                            if(bool){
-                                this.autoChat("success", [sender])
-                            }else{
-                                this.autoChat("error", [sender])
-                            }})
+                        this.db.add_administrator(parts[1], sender).then(() => {this.autoChat("success", [sender])}).catch(err => {this.autoChat("error", [sender, err])})
                     }else {
-                        this.autoChat("error", [sender])
+                        this.autoChat("error", [sender, "invalid username"])
                     }
-                }, () => {this.autoChat("permission_denied", [sender])})
+                }else{
+                    this.autoChat("permission_denied", [sender])
+                }
                 break
             case "addmoderator":
-                this.isAdmin(sender, () => {
+                if(await this.isAdmin(sender)){
                     if(parts[1]){
-                        this.db.add_moderator(parts[1], sender, (bool) => {
-                            if(bool){
-                                this.autoChat("success", [sender])
-                            }else{
-                                this.autoChat("error", [sender])
-                            }})
+                        this.db.add_moderator(parts[1], sender).then(() => {this.autoChat("success", [sender])}).catch(err => {this.autoChat("error", [sender, err])})
                     }else {
-                        this.autoChat("error", [sender])
+                        this.autoChat("error", [sender, "invalid username"])
                     }
-                }, () => {this.autoChat("permission_denied", [sender])})
+                }else{
+                    this.autoChat("permission_denied", [sender])
+                }
                 break
             case "ban":
-                this.isAdmin(sender, () => {this.ban(parts[1], parts.slice(2).join(" "), sender)}, () => {this.autoChat("permission_denied", [sender])})
+                if(await this.isAdmin(sender)){
+                    this.ban(parts[1], parts.slice(2).join(" "), sender)
+                }else
+                    this.autoChat("permission_denied", [sender])
                 break
             case "elo":
+                let target = undefined
                 if(parts[1]){
-                    this.isModerator(sender, () => {
-                        const ret4 = (player_id) => {
-                            if(player_id){
-                                this.db.get_or_create_elo(player_id, (elo) => {
-                                    this.elo_to_tier(elo, (tier) => {
-                                        this.autoChat("elo", [parts[1], elo, this.premadeMessages[tier][0]])
-                                    })
-                                })
-                            }else{
-                                this.autoChat("unknown_player", [sender])
-                            }
-                        }
-                        this.db.get_player_id(parts[1], ret4)
-                    }, () => { this.autoChat("permission_denied", [sender] )})
+                    if(await this.isModerator(sender) || await this.isAdmin(sender)){
+                        target = parts[1]
+                    }else
+                        this.autoChat("permission_denied", [sender])
                 }else{
-                    const ret5 = (player_id) => {
+                    target = sender
+                }
+                if (target){
+                    this.db.get_player_id(target).then(player_id => {
                         if(player_id){
-                            this.db.get_or_create_elo(player_id, (elo) => {
-                                this.elo_to_tier(elo, (tier) => {
-                                    this.autoChat("elo", [sender, elo, this.premadeMessages[tier][0]])
+                            this.db.get_or_create_elo(player_id).then(elo => {
+                                this.elo_to_tier(elo).then(tier => {
+                                    this.autoChat("elo", [target, elo, this.premadeMessages[tier][0]])
                                 })
                             })
                         }else{
-                            this.autoChat("unknown_player", [sender])
+                            this.autoChat("unknown_player", [target])
                         }
-                    }
-                    this.db.get_player_id(sender, ret5)
+                    })
                 }
                 break
             case "forceevent":
-                this.isModerator(sender, () => {this.events.emit("forceevent")}, () => {this.autoChat("permission_denied", [sender])})
+                if(await this.isModerator(sender) || await this.isAdmin(sender))
+                    this.events.emit("forceevent")
+                else
+                    this.autoChat("permission_denied", [sender])
                 break
             case "kick":
-                this.isModerator(sender, () => {
-                    this.isPrivileged(parts[1], () => {this.autoChat("permission_denied", [sender])}, () => {this.kick(parts[1], parts.slice(2).join(" "), sender)})
-                }, () => {this.autoChat("permission_denied", [sender])})
+                if((await this.isModerator(sender) || await this.isAdmin(sender)) && ! await this.isPrivileged(parts[1]))
+                    this.kick(parts[1], parts.slice(2).join(" "))
+                else
+                    this.autoChat("permission_denied", [sender])
                 break
             case "setchattiness":
-                this.isModerator(sender, () => {
+                if(await this.isModerator(sender) || await this.isAdmin(sender)){
                     if(isNaN(parts[1])){
                         this.autoChat("nan", [parts[1]])
                     }else{ 
                         this.events.emit("setchattiness", Number(parts[1]))
                     }
-                }, () => {this.autoChat("permission_denied", [sender])})
+                }else{
+                    this.autoChat("permission_denied", [sender])
+                }
                 break
             default:
                 this.autoChat("unknown_command")
@@ -378,33 +382,16 @@ class ChatMonitor {
         
     }
 
-    isPrivileged(name, callback_true=this.dud, callback_false=this.dud){
-        let ret = () => {
-            this.isAdmin(name, callback_true, callback_false)
-        }
-        this.isModerator(name, callback_true, ret)
+    async isPrivileged(name){
+        return await this.isModerator(name) || await this.isAdmin(name)
     }
 
-    isAdmin(name, callback_true=this.dud, callback_false=this.dud){
-        let ret = (bool) => {
-            if(bool){
-                callback_true(name)
-            }else{
-                callback_false(name)
-            }
-        }
-        this.db.is_administrator(name, ret)
+    async isAdmin(name){
+        return await this.db.is_administrator(name)
     }
 
-    isModerator(name, callback_true=this.dud, callback_false=this.dud){
-        let ret = (bool) => {
-            if(bool){
-                callback_true(name)
-            }else{
-                callback_false(name)
-            }
-        }
-        this.db.is_moderator(name, ret)
+    async isModerator(name){
+        return await this.db.is_moderator(name)
     }
 
     isBad = (message) => {
@@ -418,7 +405,7 @@ class ChatMonitor {
     }
     dud = () => {}
 
-    generate_tiers(callback){
+    generate_tiers(){
         /*generates the tiers
         by level:
         Champion: the best player(s) on the bot
@@ -430,110 +417,106 @@ class ChatMonitor {
         Silver: top 80%
         Bronze: top 95%
         Iron: the rest*/
-        let ret = (total_games) => {
-            if(this.last_generated >= total_games){
-                callback(true)
-                return
-            }
-            this.tiers.champion = -1
-            this.tiers.grandmaster = -1
-            this.tiers.master = -1
-            this.tiers.diamond = -1
-            this.tiers.platinum = -1
-            this.tiers.gold = -1
-            this.tiers.silver = -1
-            this.tiers.bronze = -1
-            this.tiers.iron = -1
-            const inner_ret = (player_ratings) => {
-                const total = player_ratings.length
-                let count = 0
-                for (let i = 0; i < total; i++){
-                    const {rating} = player_ratings[i]
-                    if(this.tiers.champion == -1 && count == 0){
-                        this.tiers.champion = rating
-                    }else if(this.tiers.grandmaster == -1 && count >= total*0.005){
-                        this.tiers.grandmaster = rating
-                    }else if(this.tiers.master == -1 && count >= total*0.02){
-                        this.tiers.master = rating
-                    }else if(this.tiers.diamond == -1 && count >= total*0.05){
-                        this.tiers.diamond = rating
-                    }else if(this.tiers.platinum == -1 && count >= total*0.20){
-                        this.tiers.platinum = rating
-                    }else if(this.tiers.gold == -1 && count >= total-total*0.40){
-                        this.tiers.gold = rating
-                    }else if(this.tiers.silver == -1 && count >= total*0.80){
-                        this.tiers.silver = rating
-                    }else if(this.tiers.bronze == -1 && count >= total*0.95){
-                        this.tiers.bronze = rating
-                    }
-                    count += 1
+        return new Promise((resolve, reject) => {
+            this.db.get_total_games().then(total_games => {
+                if(this.last_generated >= total_games){
+                    resolve()
+                    return
                 }
-                callback(true)
-            }
-            this.db.get_all_ratings(inner_ret)
-        }
-        this.db.get_total_games(ret)
+                this.tiers.champion = -1
+                this.tiers.grandmaster = -1
+                this.tiers.master = -1
+                this.tiers.diamond = -1
+                this.tiers.platinum = -1
+                this.tiers.gold = -1
+                this.tiers.silver = -1
+                this.tiers.bronze = -1
+                this.tiers.iron = -1
+                this.db.get_all_ratings().then(player_ratings => {
+                    const total = player_ratings.length
+                    let count = 0
+                    for (let i = 0; i < total; i++){
+                        const {rating} = player_ratings[i]
+                        if(this.tiers.champion == -1 && count == 0){
+                            this.tiers.champion = rating
+                        }else if(this.tiers.grandmaster == -1 && count >= total*0.005){
+                            this.tiers.grandmaster = rating
+                        }else if(this.tiers.master == -1 && count >= total*0.02){
+                            this.tiers.master = rating
+                        }else if(this.tiers.diamond == -1 && count >= total*0.05){
+                            this.tiers.diamond = rating
+                        }else if(this.tiers.platinum == -1 && count >= total*0.20){
+                            this.tiers.platinum = rating
+                        }else if(this.tiers.gold == -1 && count >= total-total*0.40){
+                            this.tiers.gold = rating
+                        }else if(this.tiers.silver == -1 && count >= total*0.80){
+                            this.tiers.silver = rating
+                        }else if(this.tiers.bronze == -1 && count >= total*0.95){
+                            this.tiers.bronze = rating
+                        }
+                        count += 1
+                    }
+                    resolve()
+                })
+            })
+        })
     }
 
     elo_to_tier(elo, callback){
-        //returns the tier equivalent
-        this.generate_tiers(() => {
-            if(elo >= this.tiers.champion){
-                callback("champion")
-            }else if(elo >= this.tiers.grandmaster){
-                callback("grandmaster")
-            }else if(elo >= this.tiers.master){
-                callback("master")
-            }else if(elo >= this.tiers.diamond){
-                callback("diamond")
-            }else if(elo >= this.tiers.platinum){
-                callback("platinum")
-            }else if(elo >= this.tiers.gold){
-                callback("gold")
-            }else if(elo >= this.tiers.silver){
-                callback("silver")
-            }else if(elo >= this.tiers.bronze){
-                callback("bronze")
-            }else if(elo >= this.tiers.iron){
-                callback("iron")
-            }else{
-                callback("undefined")
-            }
-        })
-    }
-    profile(username){
-        //as you read this, you might wonder: why not use promises? and the answer is that this is a hobby project, 
-        //I'm porting this from python, and it's bad enough that I have to do databases with callbacks
-        //I just want things to work and I think promises is the ugliest language feature I have ever seen
-        this.db.get_player_id(username, (player_id) => {
-            if(!player_id){
-                this.autoChat("profile_unknown")
-                return
-            }
-            this.db.get_player_truename(player_id, (truename) => {
-                this.autoChat("profile_username", [truename])
-                this.db.get_or_create_elo(player_id, (elo) => {
-                    this.elo_to_tier(elo, (tier) => {
-                        this.autoChat("profile_elo", [elo, this.premadeMessages[tier][0]])    
-                        this.db.get_player_game_count(player_id, (play_count) => {
-                            this.autoChat("profile_play_count", [play_count])
-                            this.db.get_player_win_count(player_id, (wins) => {
-                                this.autoChat("profile_wins", [wins])
-                                this.db.get_player_song_count(player_id, (song_count) => {
-                                    this.autoChat("profile_song_count", [song_count])
-                                    this.db.get_player_hit_count(player_id, (hit_count) => {
-                                        this.autoChat("profile_hit_count", [hit_count])
-                                        this.db.get_player_hit_rate(player_id, (hit_rate) => {
-                                            this.autoChat("profile_play_rate", [hit_rate])
-                                        })
-                                    })
-                                })
-                            })      
-                        })
-                    })
-                }) 
+        return new Promise((resolve) => {
+            //returns the tier equivalent
+            this.generate_tiers().then(() => {
+                if(elo >= this.tiers.champion){
+                    resolve("champion")
+                }else if(elo >= this.tiers.grandmaster){
+                    resolve("grandmaster")
+                }else if(elo >= this.tiers.master){
+                    resolve("master")
+                }else if(elo >= this.tiers.diamond){
+                    resolve("diamond")
+                }else if(elo >= this.tiers.platinum){
+                    resolve("platinum")
+                }else if(elo >= this.tiers.gold){
+                    resolve("gold")
+                }else if(elo >= this.tiers.silver){
+                    resolve("silver")
+                }else if(elo >= this.tiers.bronze){
+                    resolve("bronze")
+                }else if(elo >= this.tiers.iron){
+                    resolve("iron")
+                }else{
+                    resolve("undefined")
+                }
             })
         })
+    }
+    async profile(username){
+        const player_id = await this.db.get_player_id(username)
+        if(!player_id){
+            this.autoChat("profile_unknown")
+            return
+        }
+        const truename = await this.db.get_player_truename(player_id)
+        this.autoChat("profile_username", [truename])
+
+        const elo = await this.db.get_or_create_elo(player_id)
+        const tier = await this.elo_to_tier(elo)
+        this.autoChat("profile_elo", [elo, this.premadeMessages[tier][0]])    
+
+        const play_count = await this.db.get_player_game_count(player_id)
+        this.autoChat("profile_play_count", [play_count])
+
+        const wins = await this.db.get_player_win_count(player_id)
+        this.autoChat("profile_wins", [wins])
+
+        const song_count = await this.db.get_player_song_count(player_id)
+        this.autoChat("profile_song_count", [song_count])
+        
+        const hit_count = await this.db.get_player_hit_count(player_id)
+        this.autoChat("profile_hit_count", [hit_count])
+
+        const hit_rate = await this.db.get_player_hit_rate(player_id)
+        this.autoChat("profile_play_rate", [hit_rate])
     }
 }
 module.exports = {ChatMonitor}
