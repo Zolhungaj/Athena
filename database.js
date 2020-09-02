@@ -80,21 +80,15 @@ class Database{
             FOREIGN KEY(game_id) REFERENCES game(game_id),
             FOREIGN KEY(player_id) REFERENCES player(player_id)
         );`)
-        c.run(`CREATE TABLE IF NOT EXISTS gameplayermissed(
+        c.run(`CREATE TABLE IF NOT EXISTS gameplayeranswer(
             game_id INTEGER NOT NULL,
             player_id INTEGER NOT NULL,
             ordinal INTEGER NOT NULL,
+            correct INTEGER NOT NULL,
             answer TEXT,
             PRIMARY KEY(game_id, player_id, ordinal),
-            FOREIGN KEY(game_id, player_id) REFERENCES gameplayer(game_id, player_id)
-        );`)
-        c.run(`CREATE TABLE IF NOT EXISTS gameplayercorrect(
-            game_id INTEGER NOT NULL,
-            player_id INTEGER NOT NULL,
-            ordinal INTEGER NOT NULL,
-            answer TEXT,
-            PRIMARY KEY(game_id, player_id, ordinal),
-            FOREIGN KEY(game_id, player_id) REFERENCES gameplayer(game_id, player_id)
+            FOREIGN KEY(game_id, player_id) REFERENCES gameplayer(game_id, player_id),
+            CHECK (correct=0 OR correct=1)
         );`)
         c.run(`CREATE TABLE IF NOT EXISTS elodiff(
             game_id INTEGER NOT NULL,
@@ -877,10 +871,10 @@ class Database{
         this.conn.all(`
             SELECT anime, type, title, artist, link, answer
             FROM player p
-            NATURAL JOIN gameplayermissed
+            NATURAL JOIN gameplayeranswer
             NATURAL JOIN gamesong gs
             NATURAL JOIN song s
-            WHERE username = $username
+            WHERE username = $username AND correct = 0
             AND game_id = (select MAX(game_id) from gameplayer gp2 NATURAL JOIN player p2 where p2.username = $username)
             ORDER by ordinal ASC
         `, {$username: username, }, success)
@@ -913,7 +907,7 @@ class Database{
                         return
                     }
                     this.conn.run(`
-                    INSERT into gameplayer VALUES(
+                    INSERT into gameplayer (game_id, player_id, correct_songs, missed_songs, position) VALUES(
                     ?,
                     ?,
                     ?,
@@ -924,23 +918,23 @@ class Database{
                         const {song, answer} = p.correct_songs[j]
                         const ordinal = song_list_with_ordinal[song.id]
                         this.conn.run(`
-                        INSERT into gameplayercorrect VALUES(
+                        INSERT into gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
                         ?,
                         ?,
                         ?,
                         ?
-                        )`, [game_id, player_id, ordinal, answer])
+                        )`, [game_id, player_id, ordinal, answer, 1])
                     }
                     for(let j = 0; j < p.wrong_songs.length; j++){
                         const {song, answer} = p.wrong_songs[j]
                         const ordinal = song_list_with_ordinal[song.id]
                         this.conn.run(`
-                        INSERT into gameplayermissed VALUES(
+                        INSERT into gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
                         ?,
                         ?,
                         ?,
                         ?
-                        )`, [game_id, player_id, ordinal, answer])
+                        )`, [game_id, player_id, ordinal, answer, 0])
                     }
 
                 }
