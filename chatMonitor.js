@@ -262,13 +262,13 @@ class ChatMonitor {
                 let leaderboardfunc = () => {} //empty func so not everything dies if this doesn't get defined
                 switch(this.leaderboardType){
                     case "rating": //this is the elo rating
-                        leaderboardfunc = this.db.get_elo_leaderboard_truename
+                        leaderboardfunc = this.db.get_elo_leaderboard
                         break
                     case "result": //this is the correct songs count
-                        leaderboardfunc = this.db.get_result_leaderboard_truename
+                        leaderboardfunc = this.db.get_result_leaderboard
                         break
                     case "score": //this is a custom score factor the bot can use, not implemented yet
-                        //leaderboardfunc = this.db.get_score_leaderboard_truename
+                        //leaderboardfunc = this.db.get_score_leaderboard
                         //break
                     default:
                         leaderboardfunc = () => { this.autoChat("leaderboard_disabled") }

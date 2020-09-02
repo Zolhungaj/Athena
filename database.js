@@ -11,119 +11,116 @@ class Database{
         const c = this.conn
 
         c.run(`CREATE TABLE IF NOT EXISTS player(
-        id INTEGER PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        truename TEXT NOT NULL
+            player_id INTEGER PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            truename TEXT UNIQUE NOT NULL
         );`)
         c.run(`CREATE TABLE IF NOT EXISTS message(
-        id INTEGER PRIMARY KEY,
-        player_id INTEGER,
-        time TEXT,
-        content TEXT,
-        FOREIGN KEY(player_id) REFERENCES player(id)
+            message_id INTEGER PRIMARY KEY,
+            player_id INTEGER,
+            time TEXT,
+            content TEXT,
+            FOREIGN KEY(player_id) REFERENCES player(player_id)
         )`)
         c.run(`CREATE TABLE IF NOT EXISTS banned(
-        player_id INTEGER PRIMARY KEY,
-        reason TEXT,
-        banner INTEGER NOT NULL,
-        FOREIGN KEY(player_id) REFERENCES player(id),
-        FOREIGN KEY(banner) REFERENCES player(id)
+            player_id INTEGER PRIMARY KEY,
+            banner_id INTEGER NOT NULL,
+            time TEXT,
+            reason TEXT,
+            FOREIGN KEY(player_id) REFERENCES player(player_id),
+            FOREIGN KEY(banner_id) REFERENCES player(player_id)
         );`)
         c.run(`CREATE TABLE IF NOT EXISTS level(
-        player_id INTEGER PRIMARY KEY,
-        level INTEGER NOT NULL,
-        FOREIGN KEY(player_id) REFERENCES player(id)
+            player_id INTEGER PRIMARY KEY,
+            level INTEGER NOT NULL,
+            FOREIGN KEY(player_id) REFERENCES player(player_id)
         );`)
         c.run(`CREATE TABLE IF NOT EXISTS avatar(
-        player_id INTEGER PRIMARY KEY,
-        avatar TEXT NOT NULL,
-        FOREIGN KEY(player_id) REFERENCES player(id)
+            player_id INTEGER PRIMARY KEY,
+            avatar TEXT NOT NULL,
+            FOREIGN KEY(player_id) REFERENCES player(player_id)
+        );`)
+        c.run(`CREATE TABLE IF NOT EXISTS elo(
+            player_id INTEGER PRIMARY KEY,
+            rating INTEGER NOT NULL,
+            FOREIGN KEY(player_id) REFERENCES player(player_id)
+        );`)
+        c.run(`CREATE TABLE IF NOT EXISTS administrator(
+            player_id INTEGER PRIMARY KEY,
+            source INTEGER,
+            FOREIGN KEY(player_id) REFERENCES player(player_id),
+            FOREIGN KEY(source) REFERENCES player(player_id)
+        );`)
+        c.run(`CREATE TABLE IF NOT EXISTS moderator(
+            player_id INTEGER PRIMARY KEY,
+            source INTEGER,
+            FOREIGN KEY(player_id) REFERENCES player(player_id),
+            FOREIGN KEY(source) REFERENCES player(player_id)
+        );`)
+        c.run(`CREATE TABLE IF NOT EXISTS valour(
+            player_id INTEGER PRIMARY KEY,
+            surplus INTEGER NOT NULL,
+            referer_id INTEGER,
+            FOREIGN KEY(player_id) REFERENCES player(player_id),
+            FOREIGN KEY(referer_id) REFERENCES player(player_id)
         );`)
         c.run(`CREATE TABLE IF NOT EXISTS game(
-        id INTEGER PRIMARY KEY,
-        song_count INTEGER,
-        player_count INTEGER,
-        time TEXT
-        )`)
-        c.run(`CREATE TABLE IF NOT EXISTS gametoplayer(
-        game_id INTEGER NOT NULL,
-        player_id INTEGER NOT NULL,
-        result INTEGER,
-        miss_count INTEGER,
-        position INTEGER,
-        PRIMARY KEY(game_id, player_id),
-        FOREIGN KEY(game_id) REFERENCES game(id),
-        FOREIGN KEY(player_id) REFERENCES player(id)
-        )`)
-        c.run(`CREATE TABLE IF NOT EXISTS gameplayertomissed(
-        game_id INTEGER NOT NULL,
-        player_id INTEGER NOT NULL,
-        ordinal INTEGER,
-        answer TEXT,
-        PRIMARY KEY(game_id, player_id, ordinal),
-        FOREIGN KEY(game_id) REFERENCES game(id),
-        FOREIGN KEY(player_id) REFERENCES player(id)
-        )`)
-        c.run(`CREATE TABLE IF NOT EXISTS gameplayertocorrect(
-        game_id INTEGER NOT NULL,
-        player_id INTEGER NOT NULL,
-        ordinal INTEGER,
-        answer TEXT,
-        PRIMARY KEY(game_id, player_id, ordinal),
-        FOREIGN KEY(game_id) REFERENCES game(id),
-        FOREIGN KEY(player_id) REFERENCES player(id)
-        )`)
-        c.run(`CREATE TABLE IF NOT EXISTS elo(
-        player_id INTEGER PRIMARY KEY,
-        rating INTEGER NOT NULL,
-        FOREIGN KEY(player_id) REFERENCES player(id)
-        )`)
+            game_id INTEGER PRIMARY KEY,
+            song_count INTEGER,
+            player_count INTEGER,
+            time TEXT
+        );`)
+        c.run(`CREATE TABLE IF NOT EXISTS gameplayer(
+            game_id INTEGER NOT NULL,
+            player_id INTEGER NOT NULL,
+            result INTEGER NOT NULL,
+            miss_count INTEGER NOT NULL,
+            position INTEGER NOT NULL,
+            PRIMARY KEY(game_id, player_id),
+            FOREIGN KEY(game_id) REFERENCES game(game_id),
+            FOREIGN KEY(player_id) REFERENCES player(player_id)
+        );`)
+        c.run(`CREATE TABLE IF NOT EXISTS gameplayermissed(
+            game_id INTEGER NOT NULL,
+            player_id INTEGER NOT NULL,
+            ordinal INTEGER NOT NULL,
+            answer TEXT,
+            PRIMARY KEY(game_id, player_id, ordinal),
+            FOREIGN KEY(game_id, player_id) REFERENCES gameplayer(game_id, player_id)
+        );`)
+        c.run(`CREATE TABLE IF NOT EXISTS gameplayercorrect(
+            game_id INTEGER NOT NULL,
+            player_id INTEGER NOT NULL,
+            ordinal INTEGER NOT NULL,
+            answer TEXT,
+            PRIMARY KEY(game_id, player_id, ordinal),
+            FOREIGN KEY(game_id, player_id) REFERENCES gameplayer(game_id, player_id)
+        );`)
         c.run(`CREATE TABLE IF NOT EXISTS elodiff(
-        game_id INTEGER NOT NULL,
-        player_id INTEGER NOT NULL,
-        rating_change INTEGER NOT NULL,
-        PRIMARY KEY(game_id, player_id),
-        FOREIGN KEY(player_id) REFERENCES player(id),
-        FOREIGN KEY(game_id) REFERENCES game(id)
-        )`)
+            game_id INTEGER NOT NULL,
+            player_id INTEGER NOT NULL,
+            rating_change INTEGER NOT NULL,
+            PRIMARY KEY(game_id, player_id),
+            FOREIGN KEY(game_id, player_id) REFERENCES gameplayer(game_id, player_id)
+        );`)
         c.run(`CREATE TABLE IF NOT EXISTS song(
-        id INTEGER PRIMARY KEY,
-        anime TEXT,
-        type TEXT,
-        title TEXT,
-        artist TEXT,
-        link TEXT
-        )`)
-        c.run(`CREATE TABLE IF NOT EXISTS gametosong(
-        game_id INTEGER NOT NULL,
-        song_id INTEGER NOT NULL,
-        ordinal INTEGER NOT NULL,
-        PRIMARY KEY(game_id, ordinal),
-        FOREIGN KEY(game_id) REFERENCES game(id),
-        FOREIGN KEY(song_id) REFERENCES song(id)
-        )`)
-        c.run(`CREATE TABLE IF NOT EXISTS valour(
-        player_id INTEGER PRIMARY KEY,
-        surplus INTEGER NOT NULL,
-        referer_id INTEGER,
-        FOREIGN KEY(player_id) REFERENCES player(id),
-        FOREIGN KEY(referer_id) REFERENCES player(id)
-        )
-        `)
-        c.run(`CREATE TABLE IF NOT EXISTS administrator(
-        player_id INTEGER PRIMARY KEY,
-        source INTEGER,
-        FOREIGN KEY(player_id) REFERENCES player(id),
-        FOREIGN KEY(source) REFERENCES player(id)
-        )
-        `)
-        c.run(`CREATE TABLE IF NOT EXISTS moderator(
-        player_id INTEGER PRIMARY KEY,
-        source INTEGER,
-        FOREIGN KEY(player_id) REFERENCES player(id),
-        FOREIGN KEY(source) REFERENCES player(id)
-        )
-        `)
+            song_id INTEGER PRIMARY KEY,
+            anime TEXT,
+            type TEXT,
+            title TEXT,
+            artist TEXT,
+            link TEXT
+        );`)
+        c.run(`CREATE TABLE IF NOT EXISTS gamesong(
+            game_id INTEGER NOT NULL,
+            song_id INTEGER NOT NULL,
+            ordinal INTEGER NOT NULL,
+            PRIMARY KEY(game_id, ordinal),
+            FOREIGN KEY(game_id) REFERENCES game(game_id),
+            FOREIGN KEY(song_id) REFERENCES song(song_id)
+        );`)
+        
+        
         this.conn.run(`INSERT INTO player VALUES(
             0,
             '<system>',
@@ -131,11 +128,11 @@ class Database{
         );`, [], this.dud)
         this.conn.run(`INSERT INTO administrator VALUES(
             0,
-            0
+            NULL
             );`, [], this.dud)
         this.conn.run(`INSERT INTO moderator VALUES(
             0,
-            0
+            NULL
             );`, [], this.dud)
     }
 
@@ -174,7 +171,7 @@ class Database{
 
     get_player_id(username="", callback){
         const ret = (err, row) => {
-            callback(row?row.id:null)
+            callback(row?row.player_id:null)
         }
         this.conn.get(`SELECT id FROM player WHERE username=(?)`, [username.toLowerCase()], ret)
     }
@@ -338,10 +335,9 @@ class Database{
         let query = `
         SELECT p.username as thePlayer, reason, p2.username as theBanner
         FROM banned AS b
-        JOIN player p
-            ON p.id = b.player_id
-        JOIN player p2
-            ON p2.id = b.banner
+        NATURAL JOIN player AS p
+        JOIN player AS p2
+            ON p2.player_id = b.banner
         `
         if (username){
             if (banner){
@@ -515,7 +511,7 @@ class Database{
             if(err){
                 callback(-2)
             }else{
-                callback(row?row.id:-3)
+                callback(row?row.surplus:-3)
             }
         }
         this.has_valour(username, ret1)
@@ -560,17 +556,17 @@ class Database{
                     ON r.player_id = v.referer_id)
         SELECT r.lvl, p.username, p2.username
         FROM record AS r
-        JOIN player AS p on p.id = r.player_id
-        LEFT OUTER JOIN player as p2 on p2.id = r.referer_id
+        NATURAL JOIN player AS p
+        LEFT OUTER JOIN player as p2 on p2.player_id = r.referer_id
         ORDER BY r.lvl, p.username, p2.username`, [], ret)
     }
 
     get_song_id(song, callback){
         const ret = (err, row) => {
-            callback(err?null:row?row.id:null)
+            callback(err?null:row?row.song_id:null)
         }
         this.conn.get(`
-        SELECT id FROM song
+        SELECT song_id FROM song
         WHERE
                 anime = ?
             AND
@@ -612,14 +608,14 @@ class Database{
 
     create_game(song_count, player_count, callback){
         const step3 = (err, row) => {
-            callback(err?null:row?row.id:null)
+            callback(err?null:row?row.game_id:null)
         }
         const step2 = (err) => {
             if(err){
                 callback(null)
             }else{
                 this.conn.get(`
-                    SELECT id FROM game
+                    SELECT game_id FROM game
                     ORDER BY id DESC
                     LIMIT 1
                 `, [], step3)
@@ -641,7 +637,7 @@ class Database{
         }
         const ret = (song_id) => {
             this.conn.run(`
-            INSERT INTO gametosong VALUES(
+            INSERT INTO gamesong VALUES(
             ?,
             ?,
             ?
@@ -654,11 +650,12 @@ class Database{
         const ret = (err, rows) => {
             callback(err?[]:rows)
         }
+        //this is gameplayer to limit the elo to only those who have actually played a game, 
+        //because checking elo autogenerates the default
         this.conn.all(`
         SELECT DISTINCT(g.player_id), rating
-        FROM gametoplayer g
-        INNER JOIN elo e
-        ON e.player_id = g.player_id
+        FROM gameplayer g
+        NATURAL JOIN elo e
         ORDER BY rating DESC`, [], ret)
     }
 
@@ -675,7 +672,7 @@ class Database{
             callback(err?null:row?row.c:null)
         }
         this.conn.get(`
-        SELECT count(*) as c FROM gametoplayer
+        SELECT count(*) as c FROM gameplayer
         WHERE player_id = ?`, [player_id], ret)
     }
 
@@ -684,7 +681,7 @@ class Database{
             callback(err?null:row?row.c:null)
         }
         this.conn.get(`
-        SELECT count(*) as c FROM gametoplayer
+        SELECT count(*) as c FROM gameplayer
         WHERE player_id = ?
         AND position = 1`, [player_id], ret)
     }
@@ -704,7 +701,7 @@ class Database{
             }
         }
         this.conn.get(`
-        SELECT SUM(result) as s FROM gametoplayer
+        SELECT SUM(result) as s FROM gameplayer
         WHERE player_id = ?`, [player_id], ret)
     }
 
@@ -713,7 +710,7 @@ class Database{
             callback(err?0:row?row.s:0)
         }
         this.conn.get(`
-        SELECT SUM(miss_count) as s FROM gametoplayer
+        SELECT SUM(miss_count) as s FROM gameplayer
         WHERE player_id = ?`, [player_id], ret)
     }
 
@@ -825,61 +822,31 @@ class Database{
         this.get_or_create_elo(player_id, ret)
     }
 
-    get_result_leaderboard_player_id = (top=10, callback) =>{
+    get_result_leaderboard = (top=10, callback) =>{
         const ret = (err, rows) => {
             callback(err?[]:rows)
         }
         this.conn.all(`
-            SELECT player_id, MAX(result) as result
-            FROM gametoplayer
-            WHERE player_id not in (SELECT player_id FROM banned)
+            SELECT player_id, truename, MAX(result) as result
+            FROM player
+            NATURAL JOIN gameplayer
             GROUP BY player_id
+            HAVING player_id not in (SELECT player_id FROM banned)
             ORDER BY result DESC
             LIMIT ?
         `, [top], ret)
     }
 
-    get_result_leaderboard_truename = (top=10, callback) =>{
+    get_elo_leaderboard = (top=10, callback) => {
         const ret = (err, rows) => {
             callback(err?[]:rows)
         }
         this.conn.all(`
-            SELECT truename, MAX(result) as result
+            SELECT player_id, truename, MAX(rating) as rating
             FROM player
-            JOIN gametoplayer
-            ON player_id=id
-            WHERE player_id not in (SELECT player_id FROM banned)
+            NATURAL JOIN elo
             GROUP BY player_id
-            ORDER BY result DESC
-            LIMIT ?
-        `, [top], ret)
-    }
-
-    get_elo_leaderboard_player_id = (top=10, callback) => {
-        const ret = (err, rows) => {
-            callback(err?[]:rows)
-        }
-        this.conn.all(`
-            SELECT player_id, MAX(rating) as rating
-            FROM elo
-            GROUP BY player_id
-            WHERE player_id not in (SELECT player_id FROM banned)
-            ORDER BY rating DESC
-            LIMIT ?
-        `, [top], ret)
-    }
-
-    get_elo_leaderboard_truename = (top=10, callback) => {
-        const ret = (err, rows) => {
-            callback(err?[]:rows)
-        }
-        this.conn.all(`
-            SELECT truename, MAX(rating) as rating
-            FROM player
-            JOIN elo
-            ON player_id=id
-            WHERE player_id not in (SELECT player_id FROM banned)
-            GROUP BY player_id
+            HAVING player_id not in (SELECT player_id FROM banned)
             ORDER BY rating DESC
             LIMIT ?
         `, [top], ret)
@@ -893,11 +860,11 @@ class Database{
         this.conn.all(`
             SELECT anime, type, title, artist, link
             FROM player p
-            JOIN gametoplayer gp ON p.id = gp.player_id
-            natural join gametosong gs
-            join song s on gs.song_id = s.id
+            NATURAL JOIN gameplayer gp
+            NATURAL JOIN gamesong gs
+            NATURAL JOIN song s
             WHERE username = $username
-            AND game_id = (select MAX(game_id) from gametoplayer gp2 join player p2 on p2.id = gp2.player_id where p2.username = $username)
+            AND game_id = (select MAX(game_id) from gameplayer gp2 NATURAL JOIN player p2 where p2.username = $username)
             ORDER by ordinal ASC
         `, {$username: username, }, success)
     }
@@ -910,11 +877,11 @@ class Database{
         this.conn.all(`
             SELECT anime, type, title, artist, link, answer
             FROM player p
-            JOIN gameplayertomissed gp ON p.id = gp.player_id
-            natural join gametosong gs
-            join song s on gs.song_id = s.id
+            NATURAL JOIN gameplayermissed
+            NATURAL JOIN gamesong gs
+            NATURAL JOIN song s
             WHERE username = $username
-            AND game_id = (select MAX(game_id) from gametoplayer gp2 join player p2 on p2.id = gp2.player_id where p2.username = $username)
+            AND game_id = (select MAX(game_id) from gameplayer gp2 NATURAL JOIN player p2 where p2.username = $username)
             ORDER by ordinal ASC
         `, {$username: username, }, success)
     }
@@ -946,7 +913,7 @@ class Database{
                         return
                     }
                     this.conn.run(`
-                    INSERT into gametoplayer VALUES(
+                    INSERT into gameplayer VALUES(
                     ?,
                     ?,
                     ?,
@@ -957,7 +924,7 @@ class Database{
                         const {song, answer} = p.correct_songs[j]
                         const ordinal = song_list_with_ordinal[song.id]
                         this.conn.run(`
-                        INSERT into gameplayertocorrect VALUES(
+                        INSERT into gameplayercorrect VALUES(
                         ?,
                         ?,
                         ?,
@@ -968,7 +935,7 @@ class Database{
                         const {song, answer} = p.wrong_songs[j]
                         const ordinal = song_list_with_ordinal[song.id]
                         this.conn.run(`
-                        INSERT into gameplayertomissed VALUES(
+                        INSERT into gameplayermissed VALUES(
                         ?,
                         ?,
                         ?,
@@ -1067,31 +1034,4 @@ class Database{
         //this does nothing, just prevents optional callbacks from destroying the world
     }
 }
-
-/*
-if __name__ == "__main__":
-    // a basic test of the functions
-    database = Database(":memory:")
-    assert database.get_player_id("player1") is None
-    assert database.create_player("player1") == 1
-    assert database.get_or_create_player_id("player2") == 2
-    assert database.get_or_create_player_id("player2") == 2
-    assert database.get_player_id("player2") == 2
-    database.save_message("player3", "message1")
-    database.ban_player("player4")
-    database.ban_player("player3", "reason1", "player2")
-    database.create_player("player9")
-    assert database.add_valour("player4")
-    assert not database.add_valour("player5")
-    assert database.add_valour("player3", "player4")
-    assert not database.add_valour("player2", "player1")
-    assert database.add_valour("player1", "player3")
-    assert database.add_valour("player2", "player4")
-    assert not database.add_valour("player6", "player4")
-    print(database.valour_readable())
-    print(database.ban_readable())
-    print(database.ban_readable("player4"))
-    print(database.ban_readable(banner="player2"))
-    print(database.conn.execute(input()).fetchall())
-*/
 module.exports = {Database}
