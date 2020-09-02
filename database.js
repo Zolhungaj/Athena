@@ -902,38 +902,41 @@ class Database{
                         console.log("WEEEEEEIRD:", player_id, p.name)
                         return
                     }
+                    const even_smaller_wrapper = () => {
+                        for(let j = 0; j < p.correct_songs.length; j++){
+                            const {song, answer} = p.correct_songs[j]
+                            const ordinal = song_list_with_ordinal[song.id]
+                            this.conn.run(`
+                            INSERT INTO gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            1
+                            )`, [game_id, player_id, ordinal, answer])
+                        }
+                        for(let j = 0; j < p.wrong_songs.length; j++){
+                            const {song, answer} = p.wrong_songs[j]
+                            const ordinal = song_list_with_ordinal[song.id]
+                            this.conn.run(`
+                            INSERT INTO gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            0
+                            )`, [game_id, player_id, ordinal, answer])
+                        }
+                    }
                     this.conn.run(`
-                    INSERT INTO gameplayer (game_id, player_id, correct_songs, missed_songs, position) VALUES(
+                    INSERT INTO gameplayer (game_id, player_id, result, miss_count, position) VALUES(
                     ?,
                     ?,
                     ?,
                     ?,
                     ?
-                    )`, [game_id, player_id, correct_songs, missed_songs, position])
-                    for(let j = 0; j < p.correct_songs.length; j++){
-                        const {song, answer} = p.correct_songs[j]
-                        const ordinal = song_list_with_ordinal[song.id]
-                        this.conn.run(`
-                        INSERT INTO gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
-                        ?,
-                        ?,
-                        ?,
-                        ?,
-                        1
-                        )`, [game_id, player_id, ordinal, answer])
-                    }
-                    for(let j = 0; j < p.wrong_songs.length; j++){
-                        const {song, answer} = p.wrong_songs[j]
-                        const ordinal = song_list_with_ordinal[song.id]
-                        this.conn.run(`
-                        INSERT INTO gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
-                        ?,
-                        ?,
-                        ?,
-                        ?,
-                        0
-                        )`, [game_id, player_id, ordinal, answer])
-                    }
+                    )`, [game_id, player_id, correct_songs, missed_songs, position], even_smaller_wrapper)
+                    
 
                 }
                 this.get_or_create_player_id(p.name, smaller_wrapper)
