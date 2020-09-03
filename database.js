@@ -350,7 +350,7 @@ class Database{
             this.conn.run(`
                 DELETE FROM banned
                 WHERE player_id = (SELECT player_id FROM player where username = ?)
-                `, [username.toLowerCase()], success)
+            `, [username.toLowerCase()], success)
         })
     }
 

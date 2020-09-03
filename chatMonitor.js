@@ -77,8 +77,8 @@ class ChatMonitor {
         setTimeout(() => {successListener.destroy()}, 3000)
     }
 
-    ban(name, reason, kicker="System") {
-        this.db.ban_player(name, reason, kicker)
+    ban(name, reason, kicker="<System>") {
+        this.db.ban_player(name, reason, kicker).catch((err) => {this.autoChat("error", [err])})
         this.grudges.push({name, reason, kicker})
         
         const successListener = this.socket.on(EVENTS.PLAYER_LEFT, (data) => {
@@ -88,7 +88,16 @@ class ChatMonitor {
             }
         })
         this.socket.lobby.kick(name)
-        setTimeout(() => {successListener.destroy()}, 3000)
+        setTimeout(() => {
+            successListener.destroy()
+            this.socket.social.block(name)
+        }, 3000)
+    }
+
+    unban(name) {
+        this.db.unban_player(name).catch((err) => {this.autoChat("error", [err])})
+        this.grudges = this.grudges.filter(x => x.name === name)
+        this.socket.social.unblock(name)
     }
 
     onJoin = (name) => {
