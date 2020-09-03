@@ -10,9 +10,11 @@ class ChatMonitor {
         this.leaderboardType = leaderboardType
         this.premadeMessages = {}
         this.grudges = [] //players that will be kicked as soon as they rejoin
+
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, ({name}) => this.onJoin(name))
-        this.handleChatListener = socket.on(EVENTS.NEW_SPECTATOR, ({name}) => this.onJoin(name))
+        this.spectatorJoinedListener = socket.on(EVENTS.NEW_SPECTATOR, ({name}) => this.onJoin(name))
         this.handleChatListener = socket.on(EVENTS.GAME_CHAT_MESSAGE, (data) => this.handleChat(data))
+        
         this.blacklistedWords = []
         this.last_generated = -1
         this.tiers = {}
@@ -44,7 +46,7 @@ class ChatMonitor {
 
     destroy = () => {
         this.playerJoinedListener.destroy()
-        this.handleChatListener.destroy()
+        this.spectatorJoinedListener.destroy()
         this.handleChatListener.destroy()
     }
 
@@ -487,7 +489,7 @@ class ChatMonitor {
         })
     }
 
-    elo_to_tier(elo, callback){
+    elo_to_tier(elo){
         return new Promise((resolve) => {
             //returns the tier equivalent
             this.generate_tiers().then(() => {

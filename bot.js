@@ -86,13 +86,12 @@ class Bot{
         const theGame = new Game(this.socket, this.events, db)
         const theChatMonitor = new ChatMonitor(this.socket, this.events, db, this.username, leaderboard)
         const theSocialManager = new SocialManager(this.socket, this.events, db)
-        const terminateListener = this.events.on("terminate", () => {stillon = false}) //should be the last listener to recieve the terminate command
-        const forcedLogOffListener = this.socket.on(EVENTS.FORCED_LOGOFF, ({reason}) => {
+        this.events.once("terminate", () => {stillon = false}) //should be the last listener to recieve the terminate command
+        this.socket.once(EVENTS.FORCED_LOGOFF, ({reason}) => {
             this.events.emit("terminate")
             console.log("forced logged off", reason)
         })
-        const serverRestartListener = this.socket.on(EVENTS.SERVER_RESTART, ({time, msg}) => {
-            this.serverRestartListener.destroy()
+        this.socket.once(EVENTS.SERVER_RESTART, ({time, msg}) => {
             const milliseconds = (time*60-30)*1000
             setTimeout(() => {
                 this.events.emit("terminate")
@@ -101,15 +100,14 @@ class Bot{
         })
         this.socket.roomBrowser.host(settings)
         const destroy = () => {
-            this.terminateListener.destroy()
-            this.db.destroy()
-            this.theChat.destroy()
-            this.theRoom.destroy()
-            this.theGame.destroy()
-            this.theChatMonitor.destroy()
-            this.theSocialManager.destroy()
-            this.forcedLogOffListener.destroy()
-            this.serverRestartListener.destroy()
+            //this.events.removeListener("terminate", terminateListener)
+            db.destroy()
+            theChat.destroy()
+            theRoom.destroy()
+            theGame.destroy()
+            theChatMonitor.destroy()
+            theSocialManager.destroy()
+            this.destroy()
         }
 
         const tick = () =>{
@@ -125,7 +123,6 @@ class Bot{
     }
 
     destroy(){
-        this.events.emit("terminate")
         if(this.debug){
             this.listener.destroy()
         }

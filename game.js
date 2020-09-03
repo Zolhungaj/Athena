@@ -30,36 +30,42 @@ class Game {
                 this.answers[answer.gamePlayerId] = {answer: answer.answer, answerNumber : answer.answerNumber}
             });
         })
-        this.gameStartListener = events.on("game start", (players) => this.start(players))
         this.quizFatalErrorListener = socket.on(EVENTS.QUIZ_FATAL_ERROR, () => this.startFailed())
         this.quizReturnLobbyResultListener = socket.on(EVENTS.QUIZ_RETURN_LOBBY_VOTE_RESULT, ({passed, reason}) => this.returnLobby(passed, reason))
         this.quizOverListener = socket.on(EVENTS.QUIZ_OVER, (data) => this.quizOver(data))
         this.quizReadyListener = socket.on(EVENTS.QUIZ_READY, ({numberOfSongs}) => this.quizReady(numberOfSongs))
-    
+        
         this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => this.playerLeft(data))
-
+        
         this.quizEndResultListener = socket.on(EVENTS.QUIZ_END_RESULT, (data) => this.quizEndResult(data))
         this.answerResultsListener = socket.on(EVENTS.ANSWER_RESULTS, (data) => this.answerResults(data))
+        
+        this.gameStartListener = events.on("game start", (players) => this.start(players))
 
+        this.bonusArtistListener = events.on("bonus artist", (player, answer) => { this.bonusArtist[player] = answer })
         this.bonusAnimeListener = events.on("bonus anime", (player, answer) => { this.bonusAnime[player] = answer })
         this.bonusSongListener = events.on("bonus song", (player, answer) => { this.bonusSong[player] = answer })
-        this.bonusArtistListener = events.on("bonus artist", (player, answer) => { this.bonusArtist[player] = answer })
     }
 
     destroy = () => {
-        this.quizReturnLobbyResultListener.destroy()
-        this.quizFatalErrorListener.destroy()
-        this.quizEndResultListener.destroy()
-        this.answerResultsListener.destroy()
-        this.bonusArtistListener.destroy()
-        this.playerLeftListener.destroy()
-        this.bonusAnimeListener.destroy()
-        this.gameStartListener.destroy()
-        this.quizReadyListener.destroy()
-        this.bonusSongListener.destroy()
-        this.quizOverListener.destroy()
         this.noSongsListener.destroy()
         this.answersListener.destroy()
+        
+        this.quizFatalErrorListener.destroy()
+        this.quizReturnLobbyResultListener.destroy()
+        this.quizOverListener.destroy()
+        this.quizReadyListener.destroy()
+
+        this.playerLeftListener.destroy()
+        
+        this.quizEndResultListener.destroy()
+        this.answerResultsListener.destroy()
+        
+        
+        this.events.removeAllListeners("game start")
+        this.events.removeAllListeners("bonus artist")
+        this.events.removeAllListeners("bonus anime")
+        this.events.removeAllListeners("bonus song")
     }
 
     answerResults = ({players, groupMap, songInfo}) => {

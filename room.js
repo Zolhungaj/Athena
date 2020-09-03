@@ -30,12 +30,12 @@ class Room {
         this.spectatorLeftListener = socket.on(EVENTS.SPECTATOR_LEFT, (data) => this.spectatorLeft(data))
         this.spectatorChangedToPlayerListener = socket.on(EVENTS.SPECTATOR_CHANGED_TO_PLAYER, (data) => this.spectatorChangedToPlayer(data))
         
-        this.playerLeftQueueListener = socket.on(EVENTS.PLAYER_LEFT_QUEUE, (data) => this.playerLeftQueue(data))
         this.newPlayerInQueueListener = socket.on(EVENTS.NEW_PLAYER_IN_GAME_QUEUE, (data) => this.newPlayerInQueue(data))
+        this.playerLeftQueueListener = socket.on(EVENTS.PLAYER_LEFT_QUEUE, (data) => this.playerLeftQueue(data))
         
         this.playerNameChangedListener = socket.on(EVENTS.PLAYER_NAME_CHANGE, (data) => this.playerNameChanged(data))
-        this.spectatorNameChangedListener = socket.on(EVENTS.SPECTATOR_NAME_CHANGE, (data) => this.spectatorNameChanged(data))
         this.globalNameChangedListener = socket.on(EVENTS.ALL_PLAYER_NAME_CHANGE, (data) => this.globalNameChanged(data))
+        this.spectatorNameChangedListener = socket.on(EVENTS.SPECTATOR_NAME_CHANGE, (data) => this.spectatorNameChanged(data))
         
         this.avatarChangedListener = socket.on(EVENTS.AVATAR_CHANGE, (data) => this.avatarChanged(data))
         
@@ -76,6 +76,37 @@ class Room {
         this.tickListener = events.on("tick", () => this.tick())
         this.forceeventListener = events.on("forceevent", () => {this.counter = 1})
 
+    }
+
+    destroy = () => {
+        this.playerJoinedListener.destroy()
+        this.playerLeftListener.destroy()
+        this.playerChangedToSpectatorListener.destroy()
+
+        this.spectatorJoinedListener.destroy()
+        this.spectatorLeftListener.destroy()
+        this.spectatorChangedToPlayerListener.destroy()
+        
+        this.newPlayerInQueueListener.destroy()
+        this.playerLeftQueueListener.destroy()
+
+        this.spectatorNameChangedListener.destroy()
+        this.globalNameChangedListener.destroy()
+        this.playerNameChangedListener.destroy()
+
+        this.avatarChangedListener.destroy()
+
+        this.hostGameResponseListener.destroy()
+
+        this.noPlayersListener.destroy()
+        this.gameClosedListener.destroy()
+
+        this.quizReadyListener.destroy()
+        this.quizOverListener.destroy()
+        this.playerReadyChangedListener.destroy()
+        
+        this.events.removeAllListeners("tick")
+        this.events.removeAllListeners("forceevent")
     }
 
     roomClosed(){}
@@ -387,29 +418,6 @@ class Room {
         const oldName = data.oldName
         const newName = data.newName
         this.db.change_name(oldName, newName)
-    }
-
-    destroy = () => {
-        this.playerChangedToSpectatorListener.destroy()
-        this.spectatorChangedToPlayerListener.destroy()
-        this.spectatorNameChangedListener.destroy()
-        this.playerReadyChangedListener.destroy()
-        this.playerNameChangedListener.destroy()
-        this.globalNameChangedListener.destroy()
-        this.newPlayerInQueueListener.destroy()
-        this.hostGameResponseListener.destroy()
-        this.spectatorJoinedListener.destroy()
-        this.playerLeftQueueListener.destroy()
-        this.spectatorLeftListener.destroy()
-        this.avatarChangedListener.destroy()
-        this.playerJoinedListener.destroy()
-        this.playerLeftListener.destroy()
-        this.gameClosedListener.destroy()
-        this.forceeventListener.destroy()
-        this.noPlayersListener.destroy()
-        this.quizReadyListener.destroy()
-        this.quizOverListener.destroy()
-        this.tickListener.destroy()
     }
 
     start = () => {

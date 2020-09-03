@@ -32,14 +32,14 @@ class ChatController {
             this.premadeMessages = JSON.parse(data)
         })
 
-        this.newPlayerListener = events.on("new player", (data) => this.newPlayer(data))
+        this.setchattinessListener = events.on("setchattiness", (newValue) => {this.chattiness = newValue})
         this.newSpectatorListener = events.on("new spectator", (data) => this.newSpectator(data))
+        this.newPlayerListener = events.on("new player", (data) => this.newPlayer(data))
         this.autoChatListener = events.on("auto chat", (name, replacements=[]) => this.autoChat(name, replacements))
         this.autopmListener = events.on("auto pm", (target, name, replacements=[]) => this.autopm(target, name, replacements))
         this.chatListener = events.on("chat", (msg) => this.chat(msg))
         this.pmListener = events.on("pm", (target, msg) => this.pm(target, msg))
-        this.terminateListener = events.on("terminate", () => {this.autoChat("stop")})
-        this.setchattinessListener = events.on("setchattiness", (newValue) => {this.chattiness = newValue})
+        events.once("terminate", () => {this.autoChat("stop")})
 
         this.answerResultsListener = socket.on(EVENTS.ANSWER_RESULTS, (data) => this.answerResults(data))
         this.newChatAlertListener = socket.on(EVENTS.NEW_CHAT_ALERT, ({name, alert}) => {
@@ -61,16 +61,15 @@ class ChatController {
     }
 
     destroy = () => {
+        this.events.removeAllListeners("setchattiness")
+        this.events.removeAllListeners("new spectator")
+        this.events.removeAllListeners("new player")
+        this.events.removeAllListeners("auto chat")
+        this.events.removeAllListeners("auto pm")
+        this.events.removeAllListeners("chat")
+        this.events.removeAllListeners("pm")
         this.answerResultsListener.destroy()
-        this.setchattinessListener.destroy()
-        this.newSpectatorListener.destroy()
         this.newChatAlertListener.destroy()
-        this.terminateListener.destroy()
-        this.newPlayerListener.destroy()
-        this.autoChatListener.destroy()
-        this.autopmListener.destroy()
-        this.chatListener.destroy()
-        this.pmListener.destroy()
     }
 
     answerResults = (data) => {
