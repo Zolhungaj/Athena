@@ -78,26 +78,42 @@ class ChatMonitor {
     }
 
     ban(name, reason, kicker="<System>") {
-        this.db.ban_player(name, reason, kicker).catch((err) => {this.autoChat("error", [err])})
-        this.grudges.push({name, reason, kicker})
-        
-        const successListener = this.socket.on(EVENTS.PLAYER_LEFT, (data) => {
-            if(data.player.name === name && data.kicked){
-                this.autoChat("ban_chat", [name, reason])
-                this.autopm(name, "ban_pm", [reason])
+        this.db.get_player_id(name).then(player_id => {
+            if(!player_id){
+                this.autoChat("error", ["unknown player"])
+                return
             }
+            this.db.get_player_truename(player_id).then(truename => {
+                this.db.ban_player(truename, reason, kicker).catch((err) => {this.autoChat("error", [err])})
+                this.grudges.push({truename, reason, kicker})
+                
+                const successListener = this.socket.on(EVENTS.PLAYER_LEFT, (data) => {
+                    if(data.player.truename === truename && data.kicked){
+                        this.autoChat("ban_chat", [truename, reason])
+                        this.autopm(truename, "ban_pm", [reason])
+                    }
+                })
+                this.socket.lobby.kick(truename)
+                setTimeout(() => {
+                    successListener.destroy()
+                    this.socket.social.block(truename)
+                }, 3000)
+            })
         })
-        this.socket.lobby.kick(name)
-        setTimeout(() => {
-            successListener.destroy()
-            this.socket.social.block(name)
-        }, 3000)
     }
 
     unban(name) {
-        this.db.unban_player(name).catch((err) => {this.autoChat("error", [err])})
-        this.grudges = this.grudges.filter(x => x.name === name)
-        this.socket.social.unblock(name)
+        this.db.get_player_id(name).then(player_id => {
+            if(!player_id){
+                this.autoChat("error", ["unknown player"])
+                return
+            }
+            this.db.get_player_truename(player_id).then(truename => {
+                this.db.unban_player(truename).catch((err) => {this.autoChat("error", [err])})
+                this.grudges = this.grudges.filter(x => x.name !== truename)
+                this.socket.social.unblock(truename)
+            })
+        })
     }
 
     onJoin = (name) => {
