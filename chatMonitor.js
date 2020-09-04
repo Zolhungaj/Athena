@@ -82,15 +82,15 @@ class ChatMonitor {
     ban(name, reason, kicker="<System>") {
         this.db.get_player_id(name).then(player_id => {
             if(!player_id){
-                this.autoChat("error", ["unknown player"])
+                this.autoChat("error", [kicker, "unknown player"])
                 return
             }
             this.db.get_player_truename(player_id).then(truename => {
-                this.db.ban_player(truename, reason, kicker).catch((err) => {this.autoChat("error", [err])})
+                this.db.ban_player(truename, reason, kicker).catch((err) => {this.autoChat("error", [kicker, err])})
                 this.grudges.push({truename, reason, kicker})
                 
                 const successListener = this.socket.on(EVENTS.PLAYER_LEFT, (data) => {
-                    if(data.player.truename === truename && data.kicked){
+                    if(data.player.name === truename && data.kicked){
                         this.autoChat("ban_chat", [truename, reason])
                         this.autopm(truename, "ban_pm", [reason])
                     }
@@ -104,14 +104,14 @@ class ChatMonitor {
         })
     }
 
-    unban(name) {
+    unban(name, sender) {
         this.db.get_player_id(name).then(player_id => {
             if(!player_id){
-                this.autoChat("error", ["unknown player"])
+                this.autoChat("error", [sender, "unknown player"])
                 return
             }
             this.db.get_player_truename(player_id).then(truename => {
-                this.db.unban_player(truename).catch((err) => {this.autoChat("error", [err])})
+                this.db.unban_player(truename).catch((err) => {this.autoChat("error", [sender, err])})
                 this.grudges = this.grudges.filter(x => x.name !== truename)
                 this.socket.social.unblock(truename)
             })
@@ -267,6 +267,9 @@ class ChatMonitor {
                     this.autoChat("usage_answerartist")
                 }
                 break
+            case "friend":
+                this.socket.social.addFriend(sender)
+                break
             case "profile":
                 if(parts[1]){
                     if(await this.isModerator(sender))
@@ -401,6 +404,12 @@ class ChatMonitor {
                 }else{
                     this.autoChat("permission_denied", [sender])
                 }
+                break
+            case "unban":
+                if(await this.isAdmin(sender)){
+                    this.unban(parts[1], sender)
+                }else
+                    this.autoChat("permission_denied", [sender])
                 break
             default:
                 this.autoChat("unknown_command")
