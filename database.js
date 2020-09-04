@@ -229,7 +229,7 @@ class Database{
                     this.is_banned(username).then(banned => {
                         this.get_player_avatar(player_id).then(avatar => {
                             this.get_player_level(player_id).then(level => {
-                                resolve({player_id, level, avatar, banned})
+                                resolve({player_id, banned, level, avatar})
                             })
                         })
                     })
@@ -364,7 +364,7 @@ class Database{
                 if (err) reject(err)
                 else resolve(row?true:false)
             }
-            this.conn.run(`
+            this.conn.get(`
                 SELECT player_id FROM banned
                 NATURAL JOIN player
                 WHERE username = ?
