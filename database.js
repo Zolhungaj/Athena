@@ -792,7 +792,7 @@ class Database{
                 else resolve(row?row.sum:0)
             }
             this.conn.get(`
-                SELECT SUM(result) as sum 
+                SELECT COALESCE(SUM(result),0) as sum 
                 FROM gameplayer
                 WHERE player_id = ?
             `, [player_id], success)
@@ -806,7 +806,7 @@ class Database{
                 else resolve(row?row.sum:0)
             }
             this.conn.get(`
-                SELECT SUM(miss_count) as sum 
+                SELECT COALESCE(SUM(miss_count),0) as sum 
                 FROM gameplayer
                 WHERE player_id = ?
             `, [player_id], success)
@@ -820,7 +820,7 @@ class Database{
                 else resolve(row?row.sum:0)
             }
             this.conn.get(`
-                SELECT SUM(miss_count) + SUM(result) as sum 
+                SELECT COALESCE(SUM(miss_count),0) + COALESCE(SUM(result),0) as sum 
                 FROM gameplayer
                 WHERE player_id = ?
             `, [player_id], success)
@@ -838,7 +838,7 @@ class Database{
                 }
             }
             this.conn.get(`
-                SELECT SUM(miss_count) + SUM(result) as total, SUM(result) as hit_count
+                SELECT COALESCE(SUM(miss_count),0) + COALESCE(SUM(result),0) as total, COALESCE(SUM(result),0) as hit_count
                 FROM gameplayer
                 WHERE player_id = ?
             `, [player_id], success)
@@ -870,7 +870,7 @@ class Database{
                 }
             }
             this.conn.get(`
-                SELECT SUM(miss_count) as miss, SUM(result) as hit_count
+                SELECT COALESCE(SUM(miss_count),0) as miss, COALESCE(SUM(result),0) as hit_count
                 FROM gameplayer
                 WHERE player_id = ?
             `, [player_id], success)
