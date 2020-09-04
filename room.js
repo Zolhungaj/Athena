@@ -268,6 +268,10 @@ class Room {
         delete this.spectators[name]
     }
 
+    kick = (name) => {
+        this.socket.lobby.kick(name)
+    }
+
     playerJoined = (playerData, wasSpectator=false, wasPlayer=false) => {
         //playerData.
         //           name          //string, unique
