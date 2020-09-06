@@ -314,7 +314,13 @@ class ChatMonitor {
                         const pos = i + 1
                         const truename = rows[i].truename
                         const score = rows[i][this.leaderboardType]
-                        this.chat(pos + ":" + " " + truename + ", " + score)
+                        const count = rows[i].count
+                        const time = rows[i].time
+                        if(count && time){
+                            this.chat(pos + ":" + " " + truename + ", " + score + ((count>1)?(" x" + count):"") + " [" + time + "]")
+                        }else{
+                            this.chat(pos + ":" + " " + truename + ", " + score)
+                        }
                     }
                 }
                 break
