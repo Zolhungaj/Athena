@@ -535,9 +535,17 @@ class ChatMonitor {
         const truename = await this.db.get_player_truename(player_id)
         this.autoChat("profile_username", [truename])
 
-        const elo = await this.db.get_or_create_elo(player_id)
-        const tier = await this.elo_to_tier(elo)
-        this.autoChat("profile_elo", [elo, this.premadeMessages[tier][0]])    
+        switch(this.leaderboardType){
+            case "rating":
+                const elo = await this.db.get_or_create_elo(player_id)
+                const tier = await this.elo_to_tier(elo)
+                this.autoChat("profile_elo", [elo, this.premadeMessages[tier][0]])
+                break
+            case "result":
+                const {result, time, count} = await this.db.get_best_result(player_id)
+                this.autoChat("profile_best_result", [result, count, time?time:this.premadeMessages["never"]])
+                break
+        }
 
         const play_count = await this.db.get_player_game_count(player_id)
         this.autoChat("profile_play_count", [play_count])

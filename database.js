@@ -946,6 +946,24 @@ class Database{
         })
     }
 
+    get_best_result = (player_id) =>{
+        return new Promise((resolve, reject) => {
+        //const list = await this.get_result_leaderboard(9999999) //this is too computationally expensive
+        const success = (err, row) => {
+            if (err) reject(err)
+            else resolve(row?row:{result: null, time: "never", count: 0})
+        }
+        this.conn.get(`
+            SELECT result, MIN(time) as time, COUNT(*) as count
+            FROM player p
+            NATURAL JOIN gameplayer
+            NATURAL JOIN game
+            GROUP BY player_id, result
+            HAVING player_id = $player_id AND result = (SELECT MAX(result) from gameplayer gp where gp.player_id = $player_id)
+        `, {$player_id: player_id}, success)
+        })
+    }
+
     get_result_leaderboard = (top=10) =>{
         return new Promise((resolve, reject) => {
             const success = (err, rows) => {
@@ -953,12 +971,13 @@ class Database{
                 else resolve(rows)
             }
             this.conn.all(`
-                SELECT player_id, truename, MAX(result) AS result
-                FROM player
+                SELECT player_id, truename, result, MIN(time) as time, COUNT(*) as count
+                FROM player p
                 NATURAL JOIN gameplayer
-                GROUP BY player_id
-                HAVING player_id NOT IN (SELECT player_id FROM banned)
-                ORDER BY result DESC
+                NATURAL JOIN game
+                GROUP BY player_id, result
+                HAVING player_id NOT IN (SELECT player_id FROM banned) AND result = (SELECT MAX(result) from gameplayer gp where gp.player_id = p.player_id)
+                ORDER BY result DESC, count DESC, time ASC
                 LIMIT ?
             `, [top], success)
         })
