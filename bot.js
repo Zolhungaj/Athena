@@ -87,16 +87,18 @@ class Bot{
         const theChatMonitor = new ChatMonitor(this.socket, this.events, db, this.username, leaderboard)
         const theSocialManager = new SocialManager(this.socket, this.events, db)
         this.events.once("terminate", () => {stillon = false}) //should be the last listener to recieve the terminate command
-        this.socket.once(EVENTS.FORCED_LOGOFF, ({reason}) => {
+        const forcedlogoff = this.socket.on(EVENTS.FORCED_LOGOFF, ({reason}) => {
             this.events.emit("terminate")
             console.log("forced logged off", reason)
+            forcedlogoff.destroy()
         })
-        this.socket.once(EVENTS.SERVER_RESTART, ({time, msg}) => {
+        const serverrestart = this.socket.on(EVENTS.SERVER_RESTART, ({time, msg}) => {
             const milliseconds = (time*60-30)*1000
             setTimeout(() => {
                 this.events.emit("terminate")
                 console.log("server restarted", msg)
             }, milliseconds)
+            serverrestart.destroy()
         })
         this.socket.roomBrowser.host(settings)
         const destroy = () => {
@@ -107,6 +109,8 @@ class Bot{
             theGame.destroy()
             theChatMonitor.destroy()
             theSocialManager.destroy()
+            forcedlogoff.destroy()
+            serverrestart.destroy()
             this.destroy()
         }
 
