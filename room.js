@@ -18,13 +18,13 @@ class Room {
 
         this.ingame = false
 
-        this.ready_backup = {} //this fixes a race condition with the database
+        //this.ready_backup = {} //this fixes a race condition with the database
 
         this.gameId = -1
 
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, (data) => this.playerJoined(data))
-        this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => this.playerLeft(data))
-        this.playerChangedToSpectatorListener = socket.on(EVENTS.PLAYER_CHANGED_TO_SPECTATOR, (data) => this.playerChangedToSpectator(data))
+        
+        
         
         this.spectatorJoinedListener = socket.on(EVENTS.NEW_SPECTATOR, (data) => this.spectatorJoined(data))
         this.spectatorLeftListener = socket.on(EVENTS.SPECTATOR_LEFT, (data) => this.spectatorLeft(data))
@@ -51,7 +51,7 @@ class Room {
             const {players, spectators, inQueue} = data
             const previousPlayers = this.players
             this.players = {}
-            this.ready_backup = {}
+            //this.ready_backup = {}
             this.activePlayers = {}
             this.spectators = {}
             this.counter = this.target
@@ -71,6 +71,9 @@ class Room {
                 this.newPlayerInQueue(q)
             }
         })
+
+        this.playerLeftListener = socket.on(EVENTS.PLAYER_LEFT, (data) => this.playerLeft(data))
+        this.playerChangedToSpectatorListener = socket.on(EVENTS.PLAYER_CHANGED_TO_SPECTATOR, (data) => this.playerChangedToSpectator(data))
         
         this.playerReadyChangedListener = socket.on(EVENTS.PLAYER_READY_CHANGE, (data) => this.playerReadyChanged(data))
         this.tickListener = events.on("tick", () => this.tick())
@@ -131,11 +134,12 @@ class Room {
                 const offenders = []
                 for(let name in this.players){
                     if(!this.players[name].ready) {
-                        if(this.ready_backup[""+this.players[name].gamePlayerId]){
+                        /*if(this.ready_backup[""+this.players[name].gamePlayerId]){
                             console.log("weird bug found?")
                         }else{
                             offenders.push(name)
-                        }
+                        }*/
+                        offenders.push(name)
                     }
                 }
                 if (offenders.length === 0){
@@ -194,7 +198,7 @@ class Room {
         this.spectators = {}
         this.queue = []
         this.gameId = data.gameId
-        this.ready_backup = {}
+        //this.ready_backup = {}
 
         
         for(let i = 0; i < data.players.length; i++){
@@ -237,7 +241,7 @@ class Room {
             console.log("unmatched gamePlayerId", data.gamePlayerId)
             console.log(JSON.stringify(this.players))
         }
-        this.ready_backup[""+data.gamePlayerId] = data.ready
+        //this.ready_backup[""+data.gamePlayerId] = data.ready
     }
     
     playerLeft = (data) => {
@@ -300,7 +304,7 @@ class Room {
         //                             outfitName     //string
         const player = new Player(playerData.name, playerData.level, playerData.avatar, playerData.ready, playerData.gamePlayerId)
         this.players[player.name] = player
-        this.ready_backup["" + player.gamePlayerId]
+        //this.ready_backup["" + player.gamePlayerId]
         this.db.get_player(playerData.name).then(async ({player_id, banned, level, avatar}) => {
             if(banned) {
                 this.kick(player.name)
@@ -336,6 +340,7 @@ class Room {
         //          name         // string
         //          gamePlayerId // integer but always null
         //player = database.getSpectator(spectator.name)
+        this.spectators[spectator.name] = {name: spectator.name}
         this.db.get_player(spectator.name).then(async ({player_id, banned}) => {
             if(banned) {
                 this.kick(spectator.name)
@@ -343,7 +348,6 @@ class Room {
             }
             const newPlayer = !player_id
             player_id = player_id || await this.db.create_player(spectator.name)
-            this.spectators[spectator.name] = {name: spectator.name, banned}
             this.events.emit("new spectator", {name: spectator.name, wasSpectator, wasPlayer, newPlayer})
         })
     }
