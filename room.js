@@ -414,7 +414,7 @@ class Room {
         if(this.spectators[oldName]) {
             this.spectators[oldName].name = newName
             this.spectators[newName] = this.spectators[oldName]
-            delete spectators[oldName]
+            delete this.spectators[oldName]
         }
     }
 
