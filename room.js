@@ -411,7 +411,7 @@ class Room {
         const oldName = data.oldName
         const newName = data.newName
         this.db.change_name(oldName, newName)
-        if(spectators[oldName]) {
+        if(this.spectators[oldName]) {
             this.spectators[oldName].name = newName
             this.spectators[newName] = this.spectators[oldName]
             delete spectators[oldName]
