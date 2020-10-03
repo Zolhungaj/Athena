@@ -26,8 +26,18 @@ class Quiz extends Commands {
 		this._sendCommand({type:"quiz",command:"quiz answer", data: {answer, isPlaying, volumeAtMax}});												
 	}
 
-	songFeedback(data) {
+	songFeedback(feedbackType, resolution, host, songId, adminReport=false) {
+		//feedbacktype: 0=none, 1=like, 2=dislike, 3=report
+		const data = {feedbackType, resolution, host, songId, adminReport}
 		this._sendCommand({type:"quiz",command:"song feedback", data});																
+	}
+
+	videoHiddenFeedback(hidden) {
+		this._sendCommand({type:"quiz",command:"video hidden feedback", data: {hidden}});	
+	}
+	
+	videoError(songId, host, resolution) {
+		this._sendCommand({type:"quiz",command:"video error", data: {songId, host, resolution}});	
 	}
 
 	skip(skipVote) {
@@ -36,6 +46,14 @@ class Quiz extends Commands {
 
 	voteReturn(accept) {
 		this._sendCommand({type:"quiz",command:"return lobby vote", data: {accept}});																		
+	}
+
+	pause() {
+		this._sendCommand({type:"quiz",command:"quiz pause"});
+	}
+	
+	unpause() {
+		this._sendCommand({type:"quiz",command:"quiz unpause"});
 	}
 }
 
