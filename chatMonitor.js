@@ -417,6 +417,14 @@ class ChatMonitor {
                 }else
                     this.autoChat("permission_denied", [sender])
                 break
+            case "pause":
+                this.chat("disabled due to bug")
+                //this.socket.quiz.pause()
+                break
+            case "unpause":
+                this.chat("disabled due to bug")
+                //this.socket.quiz.unpause()
+                break
             default:
                 this.autoChat("unknown_command")
                 break
