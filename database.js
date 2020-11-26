@@ -76,6 +76,8 @@ class Database{
             result INTEGER NOT NULL,
             miss_count INTEGER NOT NULL,
             position INTEGER NOT NULL,
+            correct_time INTEGER,
+            miss_time INTEGER,
             PRIMARY KEY(game_id, player_id),
             FOREIGN KEY(game_id) REFERENCES game(game_id),
             FOREIGN KEY(player_id) REFERENCES player(player_id)
@@ -85,6 +87,7 @@ class Database{
             player_id INTEGER NOT NULL,
             ordinal INTEGER NOT NULL,
             correct INTEGER NOT NULL,
+            answer_time INTEGER,
             answer TEXT,
             PRIMARY KEY(game_id, player_id, ordinal),
             FOREIGN KEY(game_id, player_id) REFERENCES gameplayer(game_id, player_id),
@@ -1080,38 +1083,49 @@ class Database{
                                 if (err) failed(err)
                                 else fulfilled()
                             }
+                            const sumAll = (acc, entry) => acc+(entry.time?entry.time:0)
+                            const correctTime = p.correct_songs.reduce(sumAll, 0)
+                            const missTime = p.wrong_songs.reduce(sumAll, 0)
+
+                            const correctTimeData = correctTime?correctTime:null
+                            const missTimeData = missTime?missTime:null
+                            //to do stats with the time it's useful to avoid having garbage data polluting the result
                             this.conn.run(`
-                                INSERT INTO gameplayer (game_id, player_id, result, miss_count, position) VALUES(
+                                INSERT INTO gameplayer (game_id, player_id, result, miss_count, position, correct_time, miss_time) VALUES(
+                                ?,
+                                ?,
                                 ?,
                                 ?,
                                 ?,
                                 ?,
                                 ?
-                            )`, [game_id, player_id, correct_songs, missed_songs, position], success)
+                            )`, [game_id, player_id, correct_songs, missed_songs, position, correctTimeData, missTimeData], success)
                         })
                         for(let j = 0; j < p.correct_songs.length; j++){
-                            const {song, answer} = p.correct_songs[j]
+                            const {song, answer, time} = p.correct_songs[j]
                             const ordinal = song_list_with_ordinal[song.id]
                             this.conn.run(`
-                                INSERT INTO gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
+                                INSERT INTO gameplayeranswer (game_id, player_id, ordinal, answer, answer_time, correct) VALUES(
+                                ?,
                                 ?,
                                 ?,
                                 ?,
                                 ?,
                                 1
-                            )`, [game_id, player_id, ordinal, answer])
+                            )`, [game_id, player_id, ordinal, answer, time])
                         }
                         for(let j = 0; j < p.wrong_songs.length; j++){
-                            const {song, answer} = p.wrong_songs[j]
+                            const {song, answer, time} = p.wrong_songs[j]
                             const ordinal = song_list_with_ordinal[song.id]
                             this.conn.run(`
-                                INSERT INTO gameplayeranswer (game_id, player_id, ordinal, answer, correct) VALUES(
+                                INSERT INTO gameplayeranswer (game_id, player_id, ordinal, answer, answer_time, correct) VALUES(
+                                ?,
                                 ?,
                                 ?,
                                 ?,
                                 ?,
                                 0
-                            )`, [game_id, player_id, ordinal, answer])
+                            )`, [game_id, player_id, ordinal, answer, time])
                         }
                     })
                 }

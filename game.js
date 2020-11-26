@@ -2,10 +2,11 @@ const {EVENTS, sleep} = require('./node/amq-api')
 const player = require('./player')
 const Song = require("./song").Song
 class Game {
-    constructor(socket, events, db){
+    constructor(socket, events, db, debug=false){
         this.socket = socket
         this.events = events
         this.db = db
+        this.debug = debug
 
         this.active = false
         this.players = {}
@@ -22,7 +23,7 @@ class Game {
 
         this.globalSongId = 0 // this is a counter to keep the database from crashing if the same song plays twice
 
-        
+        this.songStartTime = 0
 
         this.noSongsListener = socket.on(EVENTS.QUIZ_NO_SONGS, () => this.startFailedNoSongs())
         this.answersListener = socket.on(EVENTS.QUIZ_PLAYER_ANSWERS, ({answers}) => {
@@ -45,6 +46,19 @@ class Game {
         this.bonusArtistListener = events.on("bonus artist", (player, answer) => { this.bonusArtist[player] = answer })
         this.bonusAnimeListener = events.on("bonus anime", (player, answer) => { this.bonusAnime[player] = answer })
         this.bonusSongListener = events.on("bonus song", (player, answer) => { this.bonusSong[player] = answer })
+
+        this.playNextSongListener = socket.on(EVENTS.PLAY_NEXT_SONG, () => { this.songStartTime = Date.now() })
+        this.playerAnsweredListener = socket.on(EVENTS.QUIZ_PLAYER_ANSWERED, ({gamePlayerId, pose}) => {
+            const player = Object.values(this.players).find(entry => entry.gamePlayerId === gamePlayerId)
+            if(!player){
+                console.log("missing player", gamePlayerId)
+                return
+            }
+            player.time = Date.now()
+            if(this.debug){
+                console.log(player.name, "answered after", player.time-this.songStartTime, "milliseconds")
+            }
+        })
     }
 
     destroy = () => {
@@ -66,6 +80,9 @@ class Game {
         this.events.removeAllListeners("bonus artist")
         this.events.removeAllListeners("bonus anime")
         this.events.removeAllListeners("bonus song")
+
+        this.playNextSongListener.destroy()
+        this.playerAnsweredListener.destroy()
     }
 
     answerResults = ({players, groupMap, songInfo}) => {
@@ -160,12 +177,7 @@ class Game {
         this.songList.push(song)
         for(let i = 0; i < players.length; i++){
             const {correct, gamePlayerId, level, pose, position, positionSlot, score} = players[i]
-            let player
-            for(let name in this.players){
-                if (gamePlayerId === this.players[name].gamePlayerId){
-                    player = this.players[name]
-                }
-            }
+            const player = Object.values(this.players).find(entry => entry.gamePlayerId === gamePlayerId)
             if(!player){
                 console.log("missing player", players[i])
                 continue
@@ -177,11 +189,17 @@ class Game {
                 answer = pckg.answer
                 answerNumber = pckg.answerNumber
             }
+            if(!answer){
+                player.time = null //prevents garbage data from forming
+            }
+            const time = player.time?player.time-this.songStartTime:null
+            player.time = null
+            const newData = {song, answer, time}
             if(correct){
                 validAnswers.push(answer)
-                player.correct_songs.push({song, answer})
+                player.correct_songs.push(newData)
             }else{
-                player.wrong_songs.push({song, answer})
+                player.wrong_songs.push(newData)
             }
         }
         this.answers = {}
