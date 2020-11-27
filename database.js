@@ -1038,12 +1038,12 @@ class Database{
         this.conn.get(`
             SELECT result, MIN(time) as time, correct_time AS total_time, COUNT(*) as count
             FROM player p
-            NATURAL JOIN gameplayer
+            NATURAL JOIN gameplayer gp1
             NATURAL JOIN game
             GROUP BY player_id, result, correct_time
             HAVING player_id = $player_id 
                 AND result = (SELECT MAX(result) from gameplayer gp where gp.player_id = p.player_id AND gp.correct_time is not null)
-                AND correct_time = (SELECT MIN(correct_time) from gameplayer gp where gp.player_id = p.player_id AND gp.result = result)
+                AND correct_time = (SELECT MIN(correct_time) from gameplayer gp where gp.player_id = p.player_id AND gp.result = gp1.result)
         `, {$player_id: player_id}, success)
         })
     }
@@ -1058,12 +1058,12 @@ class Database{
             this.conn.all(`
                 SELECT player_id, truename, result || 'p ' || correct_time || 'ms' as speedrun, MIN(time) as time, COUNT(*) as count
                 FROM player p
-                NATURAL JOIN gameplayer
+                NATURAL JOIN gameplayer gp1
                 NATURAL JOIN game
                 GROUP BY player_id, result, correct_time
                 HAVING player_id NOT IN (SELECT player_id FROM banned) 
                     AND result = (SELECT MAX(result) from gameplayer gp where gp.player_id = p.player_id AND gp.correct_time is not null)
-                    AND correct_time = (SELECT MIN(correct_time) from gameplayer gp where gp.player_id = p.player_id AND gp.result = result)
+                    AND correct_time = (SELECT MIN(correct_time) from gameplayer gp where gp.player_id = p.player_id AND gp.result = gp1.result)
                 ORDER BY result DESC, correct_time ASC, count DESC, time ASC
                 LIMIT ?
             `, [top], success)
