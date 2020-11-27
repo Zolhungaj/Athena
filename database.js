@@ -985,6 +985,48 @@ class Database{
             `, [top], success)
         })
     }
+    
+    get_best_result_speedrun = (player_id) =>{
+        return new Promise((resolve, reject) => {
+        //const list = await this.get_result_leaderboard(9999999) //this is too computationally expensive
+        const success = (err, row) => {
+            if (err) reject(err)
+            else resolve(row?row:{result: null, total_time:NaN, time: "never"})
+        }
+        this.conn.get(`
+            SELECT result, MIN(time) as time, correct_time AS total_time
+            FROM player p
+            NATURAL JOIN gameplayer
+            NATURAL JOIN game
+            GROUP BY player_id, result, correct_time
+            HAVING player_id = $player_id 
+                AND result = (SELECT MAX(result) from gameplayer gp where gp.player_id = p.player_id AND gp.correct_time is not null)
+                AND correct_time = (SELECT MIN(correct_time) from gameplayer gp where gp.player_id = p.player_id AND gp.result = result)
+        `, {$player_id: player_id}, success)
+        })
+    }
+
+    
+    get_result_leaderboard_speedrun = (top=10) =>{
+        return new Promise((resolve, reject) => {
+            const success = (err, rows) => {
+                if (err) reject(err)
+                else resolve(rows)
+            }
+            this.conn.all(`
+                SELECT player_id, truename, result, MIN(time) as time, COUNT(*) as count, correct_time as total_time
+                FROM player p
+                NATURAL JOIN gameplayer
+                NATURAL JOIN game
+                GROUP BY player_id, result, correct_time
+                HAVING player_id NOT IN (SELECT player_id FROM banned) 
+                    AND result = (SELECT MAX(result) from gameplayer gp where gp.player_id = p.player_id AND gp.correct_time is not null)
+                    AND correct_time = (SELECT MIN(correct_time) from gameplayer gp where gp.player_id = p.player_id AND gp.result = result)
+                ORDER BY result DESC, correct_time ASC, count DESC, time ASC
+                LIMIT ?
+            `, [top], success)
+        })
+    }
 
     get_elo_leaderboard = (top=10) => {
         return new Promise((resolve, reject) => {
