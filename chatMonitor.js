@@ -556,9 +556,18 @@ class ChatMonitor {
                 this.autoChat("profile_elo", [elo, this.premadeMessages[tier][0]])
                 break
             case "result":
-                const {result, time, count} = await this.db.get_best_result(player_id)
-                this.autoChat("profile_best_result", [result, count, time?time:this.premadeMessages["never"]])
+                {
+                    const {result, time, count} = await this.db.get_best_result(player_id)
+                    this.autoChat("profile_best_result", [result, count, time?time:this.premadeMessages["never"]])
+                }
                 break
+            case "speedrun":
+                {
+                    const {result, total_time, time, count} = await this.db.get_best_result_speedrun(player_id)
+                    this.autoChat("profile_best_result_speedrun", [result, total_time, count, time?time:this.premadeMessages["never"]])
+                }
+                break
+
         }
 
         const play_count = await this.db.get_player_game_count(player_id)
@@ -572,9 +581,18 @@ class ChatMonitor {
 
         const hit_count = await this.db.get_player_hit_count(player_id)
         this.autoChat("profile_hit_count", [hit_count])
-
+        
         const hit_rate = await this.db.get_player_hit_rate(player_id)
         this.autoChat("profile_play_rate", [hit_rate])
+
+        const play_time = await this.db.get_guess_time(player_id)
+        this.autoChat("profile_play_time", [play_time])
+        
+        const average_correct = await this.db.get_average_answer_time_correct(player_id)
+        this.autoChat("profile_average_correct", [average_correct])
+        
+        const average_wrong = await this.db.get_average_answer_time_wrong(player_id)
+        this.autoChat("profile_average_wrong", [average_wrong])
     }
 }
 module.exports = {ChatMonitor}

@@ -881,6 +881,48 @@ class Database{
         
     }
 
+    get_average_answer_time_correct(player_id){
+        return new Promise((resolve, reject) => {
+            const success = (err, row) => {
+                if (err) reject(err)
+                else resolve(row?row.average:null)
+            }
+            this.conn.get(`
+                SELECT COALESCE(SUM(answer_time),0)/count(*) as average
+                FROM gameplayeranswer
+                WHERE player_id = ? AND answer_time is not null AND correct = 1
+            `, [player_id], success)
+        })
+    }
+
+    get_average_answer_time_wrong(player_id){
+        return new Promise((resolve, reject) => {
+            const success = (err, row) => {
+                if (err) reject(err)
+                else resolve(row?row.average:null)
+            }
+            this.conn.get(`
+                SELECT COALESCE(SUM(answer_time),0)/count(*) as average
+                FROM gameplayeranswer
+                WHERE player_id = ? AND answer_time is not null AND correct = 0
+            `, [player_id], success)
+        })
+    }
+    
+    get_guess_time(player_id){
+        return new Promise((resolve, reject) => {
+            const success = (err, row) => {
+                if (err) reject(err)
+                else resolve(row?row.time:0)
+            }
+            this.conn.get(`
+                SELECT COALESCE(SUM(correct_time),0) + COALESCE(SUM(miss_time),0) as time 
+                FROM gameplayer
+                WHERE player_id = ?
+            `, [player_id], success)
+        })
+    }
+
     get_elo(player_id){
         return new Promise((resolve, reject) => {
             const success = (err, row) => {
@@ -954,7 +996,7 @@ class Database{
         //const list = await this.get_result_leaderboard(9999999) //this is too computationally expensive
         const success = (err, row) => {
             if (err) reject(err)
-            else resolve(row?row:{result: null, time: "never", count: 0})
+            else resolve(row?row:{result: null, time: null, count: 0})
         }
         this.conn.get(`
             SELECT result, MIN(time) as time, COUNT(*) as count
@@ -991,10 +1033,10 @@ class Database{
         //const list = await this.get_result_leaderboard(9999999) //this is too computationally expensive
         const success = (err, row) => {
             if (err) reject(err)
-            else resolve(row?row:{result: null, total_time:NaN, time: "never"})
+            else resolve(row?row:{result: null, total_time:NaN, time: null, count:0})
         }
         this.conn.get(`
-            SELECT result, MIN(time) as time, correct_time AS total_time
+            SELECT result, MIN(time) as time, correct_time AS total_time, COUNT(*) as count
             FROM player p
             NATURAL JOIN gameplayer
             NATURAL JOIN game
