@@ -289,6 +289,9 @@ class ChatMonitor {
                     case "result": //this is the correct songs count
                         leaderboardfunc = this.db.get_result_leaderboard
                         break
+                    case "speedrun":
+                        leaderboardfunc = this.db.get_result_leaderboard_speedrun
+                        break
                     case "score": //this is a custom score factor the bot can use, not implemented yet
                         //leaderboardfunc = this.db.get_score_leaderboard
                         //break

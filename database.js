@@ -1056,7 +1056,7 @@ class Database{
                 else resolve(rows)
             }
             this.conn.all(`
-                SELECT player_id, truename, result, MIN(time) as time, COUNT(*) as count, correct_time as total_time
+                SELECT player_id, truename, result || 'p ' || correct_time || 'ms' as speedrun, MIN(time) as time, COUNT(*) as count
                 FROM player p
                 NATURAL JOIN gameplayer
                 NATURAL JOIN game
