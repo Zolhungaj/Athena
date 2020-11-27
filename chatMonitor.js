@@ -571,27 +571,21 @@ class ChatMonitor {
         }
 
         const play_count = await this.db.get_player_game_count(player_id)
-        this.autoChat("profile_play_count", [play_count])
-
         const wins = await this.db.get_player_win_count(player_id)
-        this.autoChat("profile_wins", [wins])
-
         const song_count = await this.db.get_player_song_count(player_id)
-        this.autoChat("profile_song_count", [song_count])
-
         const hit_count = await this.db.get_player_hit_count(player_id)
-        this.autoChat("profile_hit_count", [hit_count])
-        
         const hit_rate = await this.db.get_player_hit_rate(player_id)
-        this.autoChat("profile_play_rate", [hit_rate])
-
         const play_time = await this.db.get_guess_time(player_id)
-        this.autoChat("profile_play_time", [play_time])
-        
         const average_correct = await this.db.get_average_answer_time_correct(player_id)
-        this.autoChat("profile_average_correct", [average_correct])
-        
         const average_wrong = await this.db.get_average_answer_time_wrong(player_id)
+
+        this.autoChat("profile_play_count", [play_count])
+        this.autoChat("profile_song_count", [song_count])
+        this.autoChat("profile_hit_count", [hit_count])
+        this.autoChat("profile_wins", [wins])
+        this.autoChat("profile_play_rate", [hit_rate])
+        this.autoChat("profile_play_time", [play_time])
+        this.autoChat("profile_average_correct", [average_correct])
         this.autoChat("profile_average_wrong", [average_wrong])
     }
 }
