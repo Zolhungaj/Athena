@@ -2,10 +2,11 @@ const {EVENTS, sleep} = require('./node/amq-api')
 const player = require('./player')
 const Song = require("./song").Song
 class Game {
-    constructor(socket, events, db, debug=false){
+    constructor(socket, events, db, leaderboardType, debug=false){
         this.socket = socket
         this.events = events
         this.db = db
+        this.leaderboardType = leaderboardType // to do custom score reports inbetween songs
         this.debug = debug
 
         this.active = false
@@ -175,6 +176,7 @@ class Game {
         }
         const song = new Song(animeName, songName, artist, type, url, this.globalSongId++)
         this.songList.push(song)
+        const customScoreReport = []
         for(let i = 0; i < players.length; i++){
             const {correct, gamePlayerId, level, pose, position, positionSlot, score} = players[i]
             const player = Object.values(this.players).find(entry => entry.gamePlayerId === gamePlayerId)
@@ -198,9 +200,18 @@ class Game {
             if(correct){
                 validAnswers.push(answer)
                 player.correct_songs.push(newData)
+                if(this.leaderboardType === "speedrun"){
+                    customScoreReport.push({name: player.name, time})
+                }
             }else{
                 player.wrong_songs.push(newData)
             }
+        }
+        if(this.leaderboardType === "speedrun"){
+            customScoreReport.sort((entry1, entry2) => entry1.time - entry2.time)
+            customScoreReport.forEach((entry) => {
+                this.chat(entry.name + ": " + entry.time + "ms")
+            })
         }
         this.answers = {}
         let plusnames = []
