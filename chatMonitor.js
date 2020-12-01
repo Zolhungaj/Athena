@@ -28,6 +28,16 @@ class ChatMonitor {
         this.tiers.bronze = -1
         this.tiers.iron = -1
 
+        this.dangerousActions = {
+            CLEAR_SCORES: 1,
+        }
+
+        this.warnings = {
+            1: "warning_clear_scores",
+        }
+
+        this.confirmations = {}
+
         fs.readFile("en_UK.json", (err, data) => {
             console.log(data)
             this.premadeMessages = JSON.parse(data)
@@ -149,6 +159,44 @@ class ChatMonitor {
             this.handleCommand(sender, message.slice(1))
         }
 
+    }
+
+    
+    requestConfirmation(username, action, payload){
+        this.autoChat(this.warnings[action])
+        if(this.confirmations[username]){
+            this.abortConfirmation(username)
+        }
+        this.confirmations[username] = {action, payload, timeout: setTimeout(() => {
+            this.abortConfirmation(username)
+        }, 2 * 1000*60)}
+    }
+
+    abortConfirmation(username){
+        if(this.confirmations[username]){
+            clearTimeout(this.confirmations[username].timeout)
+            delete this.confirmations[username]
+        }
+    }
+
+    handleConfirmation(username){
+        if(!this.confirmations[username]){
+            this.autoChat("no_pending_confirmation")
+            return
+        }
+        const {action, payload} = this.confirmations[username]
+        this.abortConfirmation(username)
+        switch(action){
+            case this.dangerousActions.CLEAR_SCORES:
+                const {startDate, endDate} = payload
+                this.db.clearScores(startDate, endDate, username)
+                    .then((value) => {this.autoChat("clear_score_success", [value])})
+                    .catch((err) => {this.autoChat("clear_score_failure", [err])})
+                break
+            default:
+                this.chat("if you see this open an issue on github plz CODE=" + action)
+
+        }
     }
 
     handleCommand = async (sender, command) => {
@@ -428,6 +476,25 @@ class ChatMonitor {
                 this.chat("disabled due to bug")
                 //this.socket.quiz.unpause()
                 break
+            case "clearscores":
+                if(await this.isAdmin(sender)){
+                    const dateRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/
+                    const startDate = parts[1] + " " + parts[2]
+                    const endDate = parts[3] + " " + parts[4]
+                    if(dateRegex.test(startDate) && dateRegex.test(endDate)){
+                        this.requestConfirmation(sender, this.dangerousActions.CLEAR_SCORES, {startDate, endDate})
+                    }else{
+                        this.autoChat("invalid_dates")
+                    }
+                }else{
+                    this.autoChat("permission_denied", [sender])
+                }
+
+                break
+            case "confirm":
+                this.handleConfirmation(sender)
+                break
+            
             default:
                 this.autoChat("unknown_command")
                 break
