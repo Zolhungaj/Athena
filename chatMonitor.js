@@ -190,7 +190,7 @@ class ChatMonitor {
             case this.dangerousActions.CLEAR_SCORES:
                 const {startDate, endDate} = payload
                 this.db.clearScores(startDate, endDate, username)
-                    .then((value) => {this.autoChat("clear_score_success", [value])})
+                    .then((value) => {this.autoChat("clear_score_success", [value, startDate, endDate])})
                     .catch((err) => {this.autoChat("clear_score_failure", [err])})
                 break
             default:
@@ -493,6 +493,10 @@ class ChatMonitor {
                 break
             case "confirm":
                 this.handleConfirmation(sender)
+                break
+
+            case "abort":
+                this.abortConfirmation(sender)
                 break
             
             default:

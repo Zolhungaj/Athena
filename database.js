@@ -82,6 +82,21 @@ class Database{
             FOREIGN KEY(game_id) REFERENCES game(game_id),
             FOREIGN KEY(player_id) REFERENCES player(player_id)
         );`)
+        c.run(`CREATE TABLE IF NOT EXISTS gameplayerdeleted(
+            game_id INTEGER NOT NULL,
+            player_id INTEGER NOT NULL,
+            result INTEGER NOT NULL,
+            miss_count INTEGER NOT NULL,
+            position INTEGER NOT NULL,
+            correct_time INTEGER,
+            miss_time INTEGER,
+            admin_id INTEGER NOT NULL,
+            removal_time TEXT NOT NULL,
+            PRIMARY KEY(game_id, player_id, admin_id, removal_time), /*It is highly unlikely that two administrators delete at the same time, but could happen*/
+            FOREIGN KEY(game_id) REFERENCES game(game_id),
+            FOREIGN KEY(player_id) REFERENCES player(player_id),
+            FOREIGN KEY(admin_id) REFERENCES player(player_id) /*could reference administrator, but that would cause problems if the administrator is removed*/
+        );`)
         c.run(`CREATE TABLE IF NOT EXISTS gameplayeranswer(
             game_id INTEGER NOT NULL,
             player_id INTEGER NOT NULL,
@@ -988,6 +1003,52 @@ class Database{
                     WHERE player_id = ?
                 `, [elo + diff, player_id], step2)
             })
+        })
+    }
+
+    clearScores = (startDate, endDate, username) => {
+        return new Promise((resolve, reject) => {
+            const success = (err, row) => {
+                if (err) reject(err)
+                else {
+                    const done = function(err){ 
+                        if (err) reject(err)
+                        else resolve(this.changes)
+                    }
+                    /* this will work, whenever the sqlite3 module this depends on upgrades to SQLite 3.33, which was released 4 months ago...
+                    this.conn.run(`
+                        UPDATE gameplayer
+                        SET result = 0, miss_count = 0, position = 99, correct_time = NULL, miss_time = NULL
+                        FROM gameplayer gp
+                        NATURAL JOIN game AS g
+                        JOIN player AS p ON p.truename = $username
+                        INNER JOIN administrator AS a on p.player_id = a.player_id
+                        WHERE g.time >= $startDate AND g.time <= $endDate
+                    `, {$startDate: startDate, $endDate: endDate, $username: username}, done)*/
+                    //instead we get this mess:
+
+                    this.is_administrator(username).then(is_admin => {
+                        if(is_admin){
+                            this.conn.run(`
+                                UPDATE gameplayer
+                                SET result = 0, miss_count = 0, position = 99, correct_time = NULL, miss_time = NULL
+                                WHERE game_id IN (SELECT game_id from game where time >= $startDate AND time <= $endDate)
+                            `, {$startDate: startDate, $endDate: endDate}, done)
+                        }else{
+                            reject("INTEGRITY ERROR: " + username + " IS NOT ADMIN")
+                        }
+                    })
+                }
+            }
+            this.conn.run(`
+                INSERT into gameplayerdeleted(game_id, player_id, result, miss_count, position, correct_time, miss_time, admin_id, removal_time)
+                SELECT gp.game_id, gp.player_id, gp.result, gp.miss_count, gp.position, gp.correct_time, gp.miss_time, a.player_id, DATETIME('now')
+                FROM gameplayer AS gp
+                NATURAL JOIN game AS g
+                JOIN player AS p ON p.truename = $username
+                INNER JOIN administrator AS a on p.player_id = a.player_id
+                WHERE g.time >= $startDate AND g.time <= $endDate
+            `, {$startDate: startDate, $endDate: endDate, $username: username}, success)
         })
     }
 

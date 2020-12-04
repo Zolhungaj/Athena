@@ -66,6 +66,8 @@
     "ban_comment": [ "&1 # By &2 for &3" ],
     "banned_for": [ "Banned for &1" ],
     "banned_word": [ "Please do not use such language" ],
+    "clear_score_failure" : ["Could not clear scores due to [&1], (&2 to &3)"],
+    "clear_score_success" : ["Successfully cleared &1 scores from the timespan &2 to &3"],
     "comment_on_the_milestone_in_room" : ["(°o°:) Congratulations on reaching level &2, &1! Incredible! (*＞ｖ＜)ゞ*゜+"],
     "comment_on_huge_milestone_in_room" : ["ᕦ( ͡° ͜ʖ ͡°)ᕤ Congratulations on reaching level &2, &1! (≧∇≦*)"],
     "comment_on_big_milestone_in_room" : ["Level &2 GET! It's not like I'm happy for you or anything, &1! （＞μ＜＃）"],
@@ -173,5 +175,6 @@
     "system": ["System"],
     "unknown_command": [ "Unrecognized command" ],
     "unknown_player": [ "Unrecognized player" ],
+    "warning_clear_scores": [ "Warning this will clear all scores in the given time period (inclusive the start and end second). Type /confirm to confirm, /abort to abort" ],
     "you_answered": [ "You answered: &1"]
 }
