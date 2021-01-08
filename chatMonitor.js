@@ -14,6 +14,7 @@ class ChatMonitor {
         this.playerJoinedListener = socket.on(EVENTS.NEW_PLAYER, ({name}) => this.onJoin(name))
         this.spectatorJoinedListener = socket.on(EVENTS.NEW_SPECTATOR, ({name}) => this.onJoin(name))
         this.handleChatListener = socket.on(EVENTS.GAME_CHAT_MESSAGE, (data) => this.handleChat(data))
+        this.handleNewChatListener = socket.on(EVENTS.GAME_CHAT_UPDATE, ({messages, bubles}) => messages.forEach(message => this.handleChat(message)))
         
         this.blacklistedWords = []
         this.last_generated = -1
@@ -58,6 +59,7 @@ class ChatMonitor {
         this.playerJoinedListener.destroy()
         this.spectatorJoinedListener.destroy()
         this.handleChatListener.destroy()
+        this.handleNewChatListener.destroy()
     }
 
     chat = (msg) => {
