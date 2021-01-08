@@ -145,7 +145,7 @@ class ChatMonitor {
         }
     }
 
-    handleChat = ({sender, message, messageId, emojis: {emotes, customEmojis}, badges, atEveryone}) => {
+    handleChat = ({sender, message, messageId, emojis: {emotes, customEmojis}, badges, atEveryone, teamMessage}) => {
         if(!message) {
             return
         }
