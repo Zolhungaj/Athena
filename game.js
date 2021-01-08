@@ -49,16 +49,18 @@ class Game {
         this.bonusSongListener = events.on("bonus song", (player, answer) => { this.bonusSong[player] = answer })
 
         this.playNextSongListener = socket.on(EVENTS.PLAY_NEXT_SONG, () => { this.songStartTime = Date.now() })
-        this.playerAnsweredListener = socket.on(EVENTS.QUIZ_PLAYER_ANSWERED, ({gamePlayerId, pose}) => {
-            const player = Object.values(this.players).find(entry => entry.gamePlayerId === gamePlayerId)
-            if(!player){
-                console.log("missing player", gamePlayerId)
-                return
-            }
-            player.time = Date.now()
-            if(this.debug){
-                console.log(player.name, "answered after", player.time-this.songStartTime, "milliseconds")
-            }
+        this.playerAnsweredListener = socket.on(EVENTS.QUIZ_PLAYER_ANSWERED, (data) => {
+            data.forEach(gamePlayerId => {
+                const player = Object.values(this.players).find(entry => entry.gamePlayerId === gamePlayerId)
+                if(!player){
+                    console.log("missing player", gamePlayerId)
+                    return
+                }
+                player.time = Date.now()
+                if(this.debug){
+                    console.log(player.name, "answered after", player.time-this.songStartTime, "milliseconds")
+                }
+            })
         })
     }
 
