@@ -5,6 +5,7 @@ const ChatMonitor = require("./chatMonitor").ChatMonitor
 const ChatController = require("./chatController").ChatController
 const Game = require("./game").Game
 const SocialManager = require("./socialManager").SocialManager
+const NameResolver = require("./nameResolver").NameResolver
 const Database = require("./database").Database
 const parse = require('csv-parse/lib/sync')
 
@@ -53,7 +54,7 @@ class Bot{
             this.listener = this.socket.on(EVENTS.ALL, (data, listener, fullData) => {
                 //console.log(data)
                 //console.log(listener)
-                console.log(fullData)
+                console.log(JSON.stringify(fullData, null, 4))
             })
         }
     }
@@ -86,6 +87,7 @@ class Bot{
         const theGame = new Game(this.socket, this.events, db, leaderboard, this.debug)
         const theChatMonitor = new ChatMonitor(this.socket, this.events, db, this.username, leaderboard)
         const theSocialManager = new SocialManager(this.socket, this.events, db)
+        const theNameManager = new Name(this.socket, this.events, db)
         this.events.once("terminate", () => {stillon = false}) //should be the last listener to recieve the terminate command
         const forcedlogoff = this.socket.on(EVENTS.FORCED_LOGOFF, ({reason}) => {
             this.events.emit("terminate")
