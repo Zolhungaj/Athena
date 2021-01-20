@@ -13,11 +13,14 @@ class NameResolver {
         socket.on(EVENTS.FRIEND_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName))
         socket.on(EVENTS.ALL_PLAYER_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName))
         socket.on(EVENTS.PLAYER_PROFILE, (payload) => {
-            this.nameToOriginalNameMap[payload.name] = payload.originalName //this keeps the list nice and updated, especially if I get profiles for something else
+            if(!payload.error){
+                this.nameToOriginalNameMap[payload.name.toLowerCase()] = {name: payload.name, originalName: payload.originalName} //this keeps the list nice and updated, especially if I get profiles for something else
+            }
         })
     }
 
     getOriginalName = async (name) => {
+        name = name.toLowerCase() //this is to help with the obvious case 
         if(this.nameToOriginalNameMap[name]){
             return this.nameToOriginalNameMap[name]
         }else{
@@ -31,12 +34,15 @@ class NameResolver {
             return new Promise((resolve, reject) => {
                 let timeOut
                 const profileListener = socket.on(EVENTS.PLAYER_PROFILE, (payload) => {
-                    if(payload.name !== name){
+                    if(payload.error){
+                        return
+                    }
+                    if(payload.name.toLowerCase() !== name){ //it is known that nicknames are unique even when lower case
                         //this will only happen if the server misses the package
                     }else{
                         profileListener.destroy()
                         clearTimeout(timeOut)
-                        resolve(payload.originalName)
+                        resolve({name: payload.name, originalName: payload.originalName})
                     }
                 })
                 timeOut = setTimeout(() => {
@@ -48,18 +54,20 @@ class NameResolver {
         }
     }
     updateName = (oldName, newName) => {
+        const oldNameLower = oldName.toLowerCase()
+        const newNameLower = newName.toLowerCase()
         this.getOriginalName(newName) //in case this player was never scanned before
         .then((originalName) => { 
-            this.nameToOriginalNameMap[newName] = originalName // this should have been set by getOriginalName, but who knows
+            this.nameToOriginalNameMap[newNameLower] = {name: newName, originalName} // this should have been set by getOriginalName, but who knows
         })
         .catch((reason) => {
             if(this.debug){
                 console.log("updateName", "getOriginalName failed with reason:", reason)
             }
-            //do nothing, we know that this.nameToOriginalNameMap[oldName] does not exist
+            //we could try to recover from this.nameToOriginalNameMap[oldNameLower], but it's safer to just retry later
         })
         .finally(() => {
-            delete this.nameToOriginalNameMap[oldName] //no matter if we find the replacement, we now know that this is invalid
+            delete this.nameToOriginalNameMap[oldNameLower] //no matter if we find the replacement, we now know that this is invalid
         })
     }
 }

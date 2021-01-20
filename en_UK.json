@@ -155,6 +155,7 @@
     "profile_best_result_speedrun": [ "Best result: &1 &2ms x&3 (&4)" ],
     "profile_elo": [ "Elo: &1 (&2)" ],
     "profile_hit_count": [ "Guessed correctly: &1" ],
+    "profile_nickname": [ "Nickname: &1" ],
     "profile_play_rate": [ "Correct ratio: &1" ],
     "profile_play_count": [ "Games played: &1" ],
     "profile_play_time": [ "Time spent guessing: &1ms" ],

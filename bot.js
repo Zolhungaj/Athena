@@ -80,14 +80,14 @@ class Bot{
     start = (settings=this.settings, database=this.database, leaderboard=this.leaderboard) => {
         
         let stillon = true
+        const theNameResolver = new NameResolver(this.socket, this.events)
         const db = new Database(database)
         const theChat = new ChatController(this.socket, this.events, this.username, this.debug)
         theChat.start()
         const theRoom = new Room(this.socket, this.events, db)
         const theGame = new Game(this.socket, this.events, db, leaderboard, this.debug)
-        const theChatMonitor = new ChatMonitor(this.socket, this.events, db, this.username, leaderboard)
+        const theChatMonitor = new ChatMonitor(this.socket, this.events, db, theNameResolver, this.username, leaderboard)
         const theSocialManager = new SocialManager(this.socket, this.events, db)
-        const theNameManager = new Name(this.socket, this.events, db)
         this.events.once("terminate", () => {stillon = false}) //should be the last listener to recieve the terminate command
         const forcedlogoff = this.socket.on(EVENTS.FORCED_LOGOFF, ({reason}) => {
             this.events.emit("terminate")

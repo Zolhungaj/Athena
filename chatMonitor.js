@@ -2,10 +2,11 @@ const {SocketWrapper, getToken, EVENTS, sleep} = require('./node/amq-api')
 const fs = require("fs")
 const util = require('util');
 class ChatMonitor {
-    constructor(socket, events, db, selfName, leaderboardType) {
+    constructor(socket, events, db, nameResolver, selfName, leaderboardType) {
         this.socket = socket
         this.events = events
         this.db = db
+        this.nameResolver = nameResolver
         this.selfName = selfName
         this.leaderboardType = leaderboardType
         this.premadeMessages = {}
@@ -78,88 +79,108 @@ class ChatMonitor {
         this.events.emit("auto pm", target, message, replacements)
     }
 
-    kick(name, reason, kicker="System") {
-        this.grudges.push({name, reason, kicker})
-        
-        const successListener = this.socket.on(EVENTS.PLAYER_LEFT, (data) => {
-            if(data.player.name === name && data.kicked){
-                this.autoChat("kick_chat", [name, reason])
-                this.autopm(name, "kick_pm", [reason])
-            }
+    kick(nickname, reason, kicker="System") {
+        this.nameResolver.getOriginalName(nickname).then(({name, originalName}) => {
+            this.grudges.push({originalName, reason, kicker})
+            const successListener = this.socket.on(EVENTS.PLAYER_LEFT, (data) => {
+                if(data.player.name === name && data.kicked){
+                    this.autoChat("kick_chat", [name, reason])
+                    this.autopm(name, "kick_pm", [reason])
+                }
+            })
+            this.socket.lobby.kick(name)
+            setTimeout(() => {successListener.destroy()}, 3000)
         })
-        this.socket.lobby.kick(name)
-        setTimeout(() => {successListener.destroy()}, 3000)
     }
 
-    ban(name, reason, kicker="<System>") {
-        this.db.get_player_id(name).then(player_id => {
-            if(!player_id){
+    ban(nickname, reason, kicker="<System>") {
+        this.nameResolver.getOriginalName(nickname)
+            .then(({name, originalName}) => {
+                this.db.get_player_id(originalName)
+                    .then(player_id => {
+                        if(!player_id){
+                            this.autoChat("error", [kicker, "unknown player"])
+                            return
+                        }
+                        this.db.get_player_truename(player_id)
+                            .then(truename => {
+                                this.db.ban_player(truename, reason, kicker)
+                                    .catch((err) => {this.autoChat("error", [kicker, err])})
+                                this.grudges.push({truename, reason, kicker})
+                                
+                                const successListener = this.socket.on(EVENTS.PLAYER_LEFT, (data) => {
+                                    if(data.player.name === name && data.kicked){
+                                        this.autoChat("ban_chat", [name, reason])
+                                        this.autopm(name, "ban_pm", [reason])
+                                    }
+                                })
+                                this.socket.lobby.kick(name)
+                                setTimeout(() => {
+                                    successListener.destroy()
+                                    this.socket.social.block(name)
+                                }, 3000)
+                            })
+                    })
+            })
+            .catch(() => {
                 this.autoChat("error", [kicker, "unknown player"])
-                return
-            }
-            this.db.get_player_truename(player_id).then(truename => {
-                this.db.ban_player(truename, reason, kicker).catch((err) => {this.autoChat("error", [kicker, err])})
-                this.grudges.push({truename, reason, kicker})
-                
-                const successListener = this.socket.on(EVENTS.PLAYER_LEFT, (data) => {
-                    if(data.player.name === truename && data.kicked){
-                        this.autoChat("ban_chat", [truename, reason])
-                        this.autopm(truename, "ban_pm", [reason])
+            })
+    }
+
+    unban(nickname, sender) {
+        this.nameResolver.getOriginalName(nickname)
+            .then(({name, originalName}) => {
+                this.db.get_player_id(originalName)
+                    .then(player_id => {
+                        if(!player_id){
+                            this.autoChat("error", [sender, "unknown player"])
+                            return
+                        }
+                        this.db.get_player_truename(player_id)
+                            .then(truename => {
+                                this.db.unban_player(truename).catch((err) => {this.autoChat("error", [sender, err])})
+                                this.grudges = this.grudges.filter(x => x.name !== truename)
+                                this.socket.social.unblock(name)
+                            })
+                    })
+            })
+    }
+
+    onJoin = (nickname) => {
+        this.nameResolver.getOriginalName(nickname)
+            .then(({name, originalName}) => {
+                const reason = this.isBad(name) || this.isBad(originalName)
+                if(reason){
+                    this.socket.social.report("Offensive Name", reason, name)
+                    this.kick(name, reason)
+                    return
+                }
+                this.grudges.forEach((grudge) =>{
+                    if (originalName === grudge.name){
+                        this.kick(name, grudge.reason)
                     }
                 })
-                this.socket.lobby.kick(truename)
-                setTimeout(() => {
-                    successListener.destroy()
-                    this.socket.social.block(truename)
-                }, 3000)
             })
-        })
-    }
-
-    unban(name, sender) {
-        this.db.get_player_id(name).then(player_id => {
-            if(!player_id){
-                this.autoChat("error", [sender, "unknown player"])
-                return
-            }
-            this.db.get_player_truename(player_id).then(truename => {
-                this.db.unban_player(truename).catch((err) => {this.autoChat("error", [sender, err])})
-                this.grudges = this.grudges.filter(x => x.name !== truename)
-                this.socket.social.unblock(truename)
-            })
-        })
-    }
-
-    onJoin = (name) => {
-        const reason = this.isBad(name)
-        if(reason){
-            this.socket.social.report("Offensive Name", reason, name)
-            this.kick(name, reason)
-            return
-        }
-        for(let i = 0; i < this.grudges.length; i++){
-            const grudge = this.grudges[i]
-            if (name === grudge.name){
-                this.kick(name, grudge.reason)
-            }
-        }
     }
 
     handleChat = ({sender, message, messageId, emojis: {emotes, customEmojis}, badges, atEveryone, teamMessage}) => {
         if(!message) {
             return
         }
-        this.db.save_message(sender, message)
-        const reason = this.isBad(message)
-        if(reason) {
-            this.isPrivileged(sender, ()=>{this.autoChat("scorn_admin", [sender])}, () => {
-                this.kick(sender, reason)
-                this.socket.social.report("Verbal Abuse", reason, sender)
-            })
-        }
-        if(message[0] === "/"){
-            this.handleCommand(sender, message.slice(1))
-        }
+        this.nameResolver.getOriginalName(sender)
+        .then(({name, originalName}) => {
+            this.db.save_message(originalName, message)
+            const reason = this.isBad(message)
+            if(reason) {
+                this.isPrivileged(originalName, ()=>{this.autoChat("scorn_admin", [name])}, () => {
+                    this.kick(name, reason)
+                    this.socket.social.report("Verbal Abuse", reason, name)
+                })
+            }
+            if(message[0] === "/"){
+                this.handleCommand(originalName, message.slice(1), name)
+            }
+        })
 
     }
 
@@ -201,7 +222,7 @@ class ChatMonitor {
         }
     }
 
-    handleCommand = async (sender, command) => {
+    handleCommand = async (sender, command, senderNickname) => {
         const parts = command.split(" ")
 
         switch(parts[0].toLowerCase()) {
@@ -236,8 +257,8 @@ class ChatMonitor {
                 this.db.get_missed_last_game(sender).then(rows => {
                     for(let i = 0; i < rows.length; i++){
                         const {anime, type, title, artist, link, answer} = rows[i]
-                        this.autopm(sender, "song", [anime, type, title, artist, link])
-                        this.autopm(sender, "you_answered",[answer] )
+                        this.autopm(senderNickname, "song", [anime, type, title, artist, link])
+                        this.autopm(senderNickname, "you_answered",[answer] )
                     }
                 })
                 break
@@ -245,7 +266,7 @@ class ChatMonitor {
                 this.db.get_last_game(sender).then(rows => {
                     for(let i = 0; i < rows.length; i++){
                         const {anime, type, title, artist, link} = rows[i]
-                        this.autopm(sender, "song", [anime, type, title, artist, link])
+                        this.autopm(senderNickname, "song", [anime, type, title, artist, link])
                     }
                 })
                 break
@@ -318,7 +339,7 @@ class ChatMonitor {
                 }
                 break
             case "friend":
-                this.socket.social.addFriend(sender)
+                this.socket.social.addFriend(senderNickname)
                 break
             case "profile":
                 if(parts[1]){
@@ -357,7 +378,7 @@ class ChatMonitor {
                             rows = await leaderboardfunc(Number(parts[1]))
                     }
                     else
-                        this.autoChat("permission_denied", [sender])
+                        this.autoChat("permission_denied", [senderNickname])
                 }else
                     rows = await leaderboardfunc()
                 
@@ -381,41 +402,66 @@ class ChatMonitor {
                 if(await this.isAdmin(sender))
                     this.chat(parts.slice(1).join(" "))
                 else
-                    this.autoChat("permission_denied", [sender])
+                    this.autoChat("permission_denied", [senderNickname])
                 break
             case "stop":
                 if(await this.isAdmin(sender))
                     this.events.emit("terminate")
                 else
-                    this.autoChat("permission_denied", [sender])
+                    this.autoChat("permission_denied", [senderNickname])
                 break
             case "addadmin":
                 if(await this.isAdmin(sender)){
                     if(parts[1]){
-                        this.db.add_administrator(parts[1], sender).then(() => {this.autoChat("success", [sender])}).catch(err => {this.autoChat("error", [sender, err])})
+                        this.nameResolver.getOriginalName(parts[1])
+                            .then(({name, originalName}) => {
+                                this.db.add_administrator(originalName, sender)
+                                    .then(() => {
+                                        this.autoChat("success", [sender])
+                                    })
+                                    .catch(err => {
+                                        this.autoChat("error", [sender, err])
+                                    })
+
+                            })
+                            .catch(() => {
+                                this.autoChat("error", [senderNickname, "unable to resolve username"])
+                            })
                     }else {
-                        this.autoChat("error", [sender, "invalid username"])
+                        this.autoChat("error", [senderNickname, "invalid username"])
                     }
                 }else{
-                    this.autoChat("permission_denied", [sender])
+                    this.autoChat("permission_denied", [senderNickname])
                 }
                 break
             case "addmoderator":
                 if(await this.isAdmin(sender)){
                     if(parts[1]){
-                        this.db.add_moderator(parts[1], sender).then(() => {this.autoChat("success", [sender])}).catch(err => {this.autoChat("error", [sender, err])})
+                        this.nameResolver.getOriginalName(parts[1])
+                            .then(({name, originalName}) => {
+                                this.db.add_moderator(originalName, sender)
+                                    .then(() => {
+                                        this.autoChat("success", [senderNickname])
+                                    })
+                                    .catch(err => {
+                                        this.autoChat("error", [senderNickname, err])
+                                    })
+                            })
+                            .catch(() => {
+                                this.autoChat("error", [senderNickname, "unable to resolve username"])
+                            })
                     }else {
-                        this.autoChat("error", [sender, "invalid username"])
+                        this.autoChat("error", [senderNickname, "invalid username"])
                     }
                 }else{
-                    this.autoChat("permission_denied", [sender])
+                    this.autoChat("permission_denied", [senderNickname])
                 }
                 break
             case "ban":
                 if(await this.isAdmin(sender)){
                     this.ban(parts[1], parts.slice(2).join(" "), sender)
                 }else
-                    this.autoChat("permission_denied", [sender])
+                    this.autoChat("permission_denied", [senderNickname])
                 break
             case "elo":
                 let target = undefined
@@ -423,35 +469,48 @@ class ChatMonitor {
                     if(await this.isModerator(sender) || await this.isAdmin(sender)){
                         target = parts[1]
                     }else
-                        this.autoChat("permission_denied", [sender])
+                        this.autoChat("permission_denied", [senderNickname])
                 }else{
                     target = sender
                 }
                 if (target){
-                    this.db.get_player_id(target).then(player_id => {
-                        if(player_id){
-                            this.db.get_or_create_elo(player_id).then(elo => {
-                                this.elo_to_tier(elo).then(tier => {
-                                    this.autoChat("elo", [target, elo, this.premadeMessages[tier][0]])
+                    this.nameResolver.getOriginalName(target)
+                        .then(({name, originalName}) => {
+                            this.db.get_player_id(originalName)
+                                .then(player_id => {
+                                    if(player_id){
+                                        this.db.get_or_create_elo(player_id)
+                                            .then(elo => {
+                                                this.elo_to_tier(elo)
+                                                    .then(tier => {
+                                                        let displayName = name
+                                                        if(name !== originalName){
+                                                            displayName += "(" + originalName + ")"
+                                                        }
+                                                        this.autoChat("elo", [displayName, elo, this.premadeMessages[tier][0]])
+                                                    })
+                                            })
+                                    }else{
+                                        this.autoChat("unknown_player", [target])
+                                    }
                                 })
-                            })
-                        }else{
-                            this.autoChat("unknown_player", [target])
-                        }
-                    })
+                        })
+                        .catch(() => {
+                            this.autoChat("error", [senderNickname, "unable to resolve username"])
+                        })
                 }
                 break
             case "forceevent":
                 if(await this.isModerator(sender) || await this.isAdmin(sender))
                     this.events.emit("forceevent")
                 else
-                    this.autoChat("permission_denied", [sender])
+                    this.autoChat("permission_denied", [senderNickname])
                 break
             case "kick":
                 if((await this.isModerator(sender) || await this.isAdmin(sender)) && ! await this.isPrivileged(parts[1]))
                     this.kick(parts[1], parts.slice(2).join(" "))
                 else
-                    this.autoChat("permission_denied", [sender])
+                    this.autoChat("permission_denied", [senderNickname])
                 break
             case "setchattiness":
                 if(await this.isModerator(sender) || await this.isAdmin(sender)){
@@ -461,7 +520,7 @@ class ChatMonitor {
                         this.events.emit("setchattiness", Number(parts[1]))
                     }
                 }else{
-                    this.autoChat("permission_denied", [sender])
+                    this.autoChat("permission_denied", [senderNickname])
                 }
                 break
             case "unban":
@@ -489,7 +548,7 @@ class ChatMonitor {
                         this.autoChat("invalid_dates")
                     }
                 }else{
-                    this.autoChat("permission_denied", [sender])
+                    this.autoChat("permission_denied", [senderNickname])
                 }
 
                 break
@@ -617,14 +676,17 @@ class ChatMonitor {
         })
     }
     async profile(username){
-        const player_id = await this.db.get_player_id(username)
+        try{
+            var {name, originalName} = await this.nameResolver(username) //a very rare var
+        }catch(e){
+            this.autoChat("profile_unknown")
+            return
+        }
+        const player_id = await this.db.get_player_id(originalName)
         if(!player_id){
             this.autoChat("profile_unknown")
             return
         }
-        const truename = await this.db.get_player_truename(player_id)
-        this.autoChat("profile_username", [truename])
-
         switch(this.leaderboardType){
             case "rating":
                 const elo = await this.db.get_or_create_elo(player_id)
@@ -655,6 +717,8 @@ class ChatMonitor {
         const average_correct = await this.db.get_average_answer_time_correct(player_id)
         const average_wrong = await this.db.get_average_answer_time_wrong(player_id)
 
+        this.autoChat("profile_username", [originalName])
+        this.autoChat("profile_nickname", [name])
         this.autoChat("profile_play_count", [play_count])
         this.autoChat("profile_song_count", [song_count])
         this.autoChat("profile_hit_count", [hit_count])
