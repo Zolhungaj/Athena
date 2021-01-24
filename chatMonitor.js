@@ -566,6 +566,26 @@ class ChatMonitor {
             case "abort":
                 this.abortConfirmation(sender)
                 break
+
+            case "ping":
+                if(parts[1]){
+                    const currentTime = Date.now()
+                    const timeDiff = currentTime - parts[1]
+                    this.autoChat("pong", [timeDiff])
+                }else{
+                    const startTime = Date.now()
+                    const sentMessage = "Ping@" + startTime
+                    const listener = this.socket.on(EVENTS.GAME_CHAT_UPDATE, ({messages, bubles}) => messages.forEach(({sender, message}) => {
+                        if(sender === this.selfName && message === sentMessage){
+                            const endTime = Date.now()
+                            const timeDiff = endTime - startTime
+                            this.autoChat("ping", [timeDiff])
+                            listener.destroy()
+                        }
+                    }))
+                    this.chat(sentMessage)
+                }
+                break
             
             default:
                 this.autoChat("unknown_command")

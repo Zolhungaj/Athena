@@ -151,6 +151,8 @@
     "permission_denied": [ "You do not have permission to do that, &1!" ],
     "player_to_spectator": [ "&1 takes a breather." ],
     "pm_out": [ "Sent PM to &1: &2" ],
+    "ping": [ "Bot ping is &1ms" ],
+    "pong": [ "Your ping is &1ms" ],
     "profile_best_result": [ "Best result: &1 x&2 (&3)" ],
     "profile_best_result_speedrun": [ "Best result: &1 &2ms x&3 (&4)" ],
     "profile_elo": [ "Elo: &1 (&2)" ],
