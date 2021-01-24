@@ -17,6 +17,9 @@ class Room {
         this.db = db
         this.nameResolver = nameResolver
 
+        this.lockQueue = []
+        this.isLocked = 0
+
         this.ingame = false
 
         //this.ready_backup = {} //this fixes a race condition with the database
@@ -123,7 +126,31 @@ class Room {
         this.events.emit("auto chat", msg, replacements)
     }
 
-    tick = () => {
+    lock = async () => {
+        //console.log(this.isLocked)
+        if(!this.isLocked){
+            this.isLocked++
+            //console.log("locked", this.isLocked)
+            return Promise.resolve()
+        }else{
+            //console.log("waiting")
+            this.isLocked++
+            return new Promise((resolve, reject) => {
+                this.lockQueue.push(resolve)
+            })
+        }
+    }
+
+    unlock = () => {
+        //console.log("unlocked")
+        this.isLocked--
+        if(this.lockQueue.length){
+            this.lockQueue.shift()()
+        }
+    }
+
+    tick = async() => {
+        await this.lock()
         if(this.debug){
             //console.log("tick", this.ingame, this.counter, this.time)
         }
@@ -179,6 +206,7 @@ class Room {
             this.counter = this.target
         }
         this.time++
+        this.unlock()
     }
 
     forceToSpectator = (name) => {
@@ -208,10 +236,11 @@ class Room {
         this.socket.lobby.changeToSpectator(data.hostName)
     }
 
-    avatarChanged = (data) => {
+    avatarChanged = async (data) => {
         //data.
         //     gamePlayerId
         //     avatar // same type of data as in playerJoined's avatar
+        await this.lock()
         for (let name in this.players){
             if(this.players[name].gamePlayerId === data.gamePlayerId){
                 this.players[name].avatar = data.avatar
@@ -221,12 +250,14 @@ class Room {
                 this.events.emit("player changed avatar", name, data.avatar)
             }
         }
+        this.unlock()
     }
 
-    playerReadyChanged = (data) => {
+    playerReadyChanged = async (data) => {
         //data.
         //     gamePlayerId
         //     ready // boolean
+        await this.lock()
         let success = false
         for (let name in this.players){
             if(this.players[name].gamePlayerId === data.gamePlayerId){
@@ -242,6 +273,7 @@ class Room {
             console.log("unmatched gamePlayerId", data.gamePlayerId)
             console.log(JSON.stringify(this.players))
         }
+        this.unlock()
         //this.ready_backup[""+data.gamePlayerId] = data.ready
     }
     
@@ -265,19 +297,23 @@ class Room {
         
     }
 
-    removePlayer = (name) => {
+    removePlayer = async (name) => {
+        await this.lock()
         delete this.players[name]
+        this.unlock()
     }
 
-    removeSpectator = (name) => {
+    removeSpectator = async (name) => {
+        await this.lock()
         delete this.spectators[name]
+        this.unlock()
     }
 
     kick = (name) => {
         this.socket.lobby.kick(name)
     }
 
-    playerJoined = (playerData, wasSpectator=false, wasPlayer=false) => {
+    playerJoined = async (playerData, wasSpectator=false, wasPlayer=false) => {
         //playerData.
         //           name          //string, unique
         //           level         //integer
@@ -303,6 +339,7 @@ class Room {
         //                             backgroundHori //string/filename
         //                             backgroundVert //string/filename
         //                             outfitName     //string
+        await this.lock()
         this.nameResolver.getOriginalName(playerData.name).then(({name, originalName}) => {
             const player = new Player(name, originalName, playerData.level, playerData.avatar, playerData.ready, playerData.gamePlayerId)
             this.players[player.name] = player
@@ -333,16 +370,21 @@ class Room {
                     }
                 }
                 this.events.emit("new player", {player, wasSpectator, changedLevel, changedAvatar, wasPlayer, newPlayer})
+                this.unlock()
+            }).catch(() => {
+                this.unlock()
             })
-        })
-        
+        }).catch(() => {
+            this.unlock()
+        })  
     }
     
-    spectatorJoined = (spectator, wasSpectator=false, wasPlayer=false) => {
+    spectatorJoined = async (spectator, wasSpectator=false, wasPlayer=false) => {
         //spectator.
         //          name         // string
         //          gamePlayerId // integer but always null
         //player = database.getSpectator(spectator.name)
+        await this.lock()
         this.nameResolver.getOriginalName(spectator.name)
             .then(({name, originalName}) => {
                 this.spectators[spectator.name] = {name: spectator.name}
@@ -355,7 +397,14 @@ class Room {
                         const newPlayer = !player_id
                         player_id = player_id || await this.db.create_player(originalName)
                         this.events.emit("new spectator", {name: spectator.name, wasSpectator, wasPlayer, newPlayer})
+                        this.unlock()
                     })
+                    .catch(() => {
+                        this.unlock()
+                    })
+            })
+            .catch(() => {
+                this.unlock()
             })
     }
 
@@ -391,11 +440,12 @@ class Room {
         this.queue.push(name)
     }
 
-    playerNameChanged = (data) => {
+    playerNameChanged = async (data) => {
         //data.
         //     oldName      //string
         //     newName      //string
         //     gamePlayerId //integer
+        await this.lock()
         const oldName = data.oldName
         const newName = data.newName
         //this.db.change_name(oldName, newName)
@@ -409,12 +459,14 @@ class Room {
             this.activePlayers[newName] = this.activePlayers[oldName]
             delete this.activePlayers[oldName]
         }
+        this.unlock()
     }
 
-    spectatorNameChanged = (data) => {
+    spectatorNameChanged = async (data) => {
         //data.
         //     oldName //string
         //     newName //string
+        await this.lock()
         const oldName = data.oldName
         const newName = data.newName
         //this.db.change_name(oldName, newName)
@@ -423,6 +475,7 @@ class Room {
             this.spectators[newName] = this.spectators[oldName]
             delete this.spectators[oldName]
         }
+        this.unlock()
     }
 
     globalNameChanged = (data) => {
