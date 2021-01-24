@@ -84,7 +84,7 @@ class Bot{
         const db = new Database(database)
         const theChat = new ChatController(this.socket, this.events, this.username, this.debug)
         theChat.start()
-        const theRoom = new Room(this.socket, this.events, db)
+        const theRoom = new Room(this.socket, this.events, theNameResolver, db)
         const theGame = new Game(this.socket, this.events, db, leaderboard, this.debug)
         const theChatMonitor = new ChatMonitor(this.socket, this.events, db, theNameResolver, this.username, leaderboard)
         const theSocialManager = new SocialManager(this.socket, this.events, db)

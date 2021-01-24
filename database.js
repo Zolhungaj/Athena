@@ -1217,9 +1217,9 @@ class Database{
                             position += 1
                         }
                     }
-                    this.get_or_create_player_id(p.name).then(async (player_id) => { 
+                    this.get_or_create_player_id(p.originalName).then(async (player_id) => { 
                         if(!player_id){
-                            console.log("WEEEEEEIRD:", player_id, p.name)
+                            console.log("WEEEEEEIRD:", player_id, p.originalName)
                             reject()
                             return
                         }
@@ -1278,7 +1278,7 @@ class Database{
                 //beginning of elo recording
 
                 
-                this.get_bulk_player_id(players.map(p => p.name)).then(player_ids => {
+                this.get_bulk_player_id(players.map(p => p.originalName)).then(player_ids => {
                     this.get_bulk_elo(player_ids).then(elos => {
                         const player_id_elo_score = []
                         for (let i = 0; i < players.length; i++){

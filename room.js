@@ -2,7 +2,7 @@ const {SocketWrapper, getToken, EVENTS, sleep} = require('./node/amq-api')
 const Player = require("./player").Player
 class Room {
     //this handles events that concern the room
-	constructor(socket, events, db, debug=true) {
+	constructor(socket, events, nameResolver, db, debug=true) {
         this.players = {}
         this.activePlayers = {}
         this.spectators = {}
@@ -15,6 +15,7 @@ class Room {
         this.time = 0
         this.startBlocked = true
         this.db = db
+        this.nameResolver = nameResolver
 
         this.ingame = false
 
@@ -302,35 +303,37 @@ class Room {
         //                             backgroundHori //string/filename
         //                             backgroundVert //string/filename
         //                             outfitName     //string
-        const player = new Player(playerData.name, playerData.level, playerData.avatar, playerData.ready, playerData.gamePlayerId)
-        this.players[player.name] = player
-        //this.ready_backup["" + player.gamePlayerId]
-        this.db.get_player(playerData.name).then(async ({player_id, banned, level, avatar}) => {
-            if(banned) {
-                this.kick(player.name)
-                return
-            }
-            const newPlayer = !player_id
-            player_id = player_id || await this.db.create_player(playerData.name)
-            //console.log(playerData)
-            
-            let changedLevel = 0
-            if (player.level !== level){
-                this.db.update_player_level(player_id, player.level)
-                if(level){
-                    changedLevel = player.level - level 
+        this.nameResolver.getOriginalName(playerData.name).then(({name, originalName}) => {
+            const player = new Player(name, originalName, playerData.level, playerData.avatar, playerData.ready, playerData.gamePlayerId)
+            this.players[player.name] = player
+            //this.ready_backup["" + player.gamePlayerId]
+            this.db.get_player(originalName).then(async ({player_id, banned, level, avatar}) => {
+                if(banned) {
+                    this.kick(player.name)
+                    return
                 }
-            }
-            let changedAvatar = false
-            //console.log(JSON.stringify(player.avatar))
-            //console.log(JSON.stringify(avatar))
-            if (JSON.stringify(player.avatar) !== JSON.stringify(avatar)){
-                this.db.update_player_avatar(player_id, player.avatar)
-                if(avatar){
-                    changedAvatar = true
+                const newPlayer = !player_id
+                player_id = player_id || await this.db.create_player(originalName)
+                //console.log(playerData)
+                
+                let changedLevel = 0
+                if (player.level !== level){
+                    this.db.update_player_level(player_id, player.level)
+                    if(level){
+                        changedLevel = player.level - level 
+                    }
                 }
-            }
-            this.events.emit("new player", {player, wasSpectator, changedLevel, changedAvatar, wasPlayer, newPlayer})
+                let changedAvatar = false
+                //console.log(JSON.stringify(player.avatar))
+                //console.log(JSON.stringify(avatar))
+                if (JSON.stringify(player.avatar) !== JSON.stringify(avatar)){
+                    this.db.update_player_avatar(player_id, player.avatar)
+                    if(avatar){
+                        changedAvatar = true
+                    }
+                }
+                this.events.emit("new player", {player, wasSpectator, changedLevel, changedAvatar, wasPlayer, newPlayer})
+            })
         })
         
     }
@@ -340,16 +343,20 @@ class Room {
         //          name         // string
         //          gamePlayerId // integer but always null
         //player = database.getSpectator(spectator.name)
-        this.spectators[spectator.name] = {name: spectator.name}
-        this.db.get_player(spectator.name).then(async ({player_id, banned}) => {
-            if(banned) {
-                this.kick(spectator.name)
-                return
-            }
-            const newPlayer = !player_id
-            player_id = player_id || await this.db.create_player(spectator.name)
-            this.events.emit("new spectator", {name: spectator.name, wasSpectator, wasPlayer, newPlayer})
-        })
+        this.nameResolver.getOriginalName(spectator.name)
+            .then(({name, originalName}) => {
+                this.spectators[spectator.name] = {name: spectator.name}
+                this.db.get_player(originalName)
+                    .then(async ({player_id, banned}) => {
+                        if(banned) {
+                            this.kick(spectator.name)
+                            return
+                        }
+                        const newPlayer = !player_id
+                        player_id = player_id || await this.db.create_player(originalName)
+                        this.events.emit("new spectator", {name: spectator.name, wasSpectator, wasPlayer, newPlayer})
+                    })
+            })
     }
 
     spectatorChangedToPlayer = (player) => {
@@ -391,7 +398,7 @@ class Room {
         //     gamePlayerId //integer
         const oldName = data.oldName
         const newName = data.newName
-        this.db.change_name(oldName, newName)
+        //this.db.change_name(oldName, newName)
         if(this.players[oldName]) {
             this.players[oldName].name = newName
             this.players[newName] = this.players[oldName]
@@ -410,7 +417,7 @@ class Room {
         //     newName //string
         const oldName = data.oldName
         const newName = data.newName
-        this.db.change_name(oldName, newName)
+        //this.db.change_name(oldName, newName)
         if(this.spectators[oldName]) {
             this.spectators[oldName].name = newName
             this.spectators[newName] = this.spectators[oldName]
@@ -425,7 +432,7 @@ class Room {
         //     newName //string
         const oldName = data.oldName
         const newName = data.newName
-        this.db.change_name(oldName, newName)
+        //this.db.change_name(oldName, newName)
     }
 
     start = () => {

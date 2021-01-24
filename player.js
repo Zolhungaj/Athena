@@ -1,7 +1,8 @@
 class Player{
-    constructor(username, level, avatar, ready, gamePlayerId){
+    constructor(nickname, originalName, level, avatar, ready, gamePlayerId){
         this.score = 0
-        this.name = username
+        this.name = nickname
+        this.originalName = originalName
         this.level = level
         this.avatar = avatar
         this.ready = ready

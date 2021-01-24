@@ -33,7 +33,7 @@ class NameResolver {
             }
             return new Promise((resolve, reject) => {
                 let timeOut
-                const profileListener = socket.on(EVENTS.PLAYER_PROFILE, (payload) => {
+                const profileListener = this.socket.on(EVENTS.PLAYER_PROFILE, (payload) => {
                     if(payload.error){
                         return
                     }

@@ -677,7 +677,7 @@ class ChatMonitor {
     }
     async profile(username){
         try{
-            var {name, originalName} = await this.nameResolver(username) //a very rare var
+            var {name, originalName} = await this.nameResolver.getOriginalName(username) //a very rare var
         }catch(e){
             this.autoChat("profile_unknown")
             return
