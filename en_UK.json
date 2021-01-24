@@ -167,6 +167,8 @@
     "profile_wins": [ "Games won: &1" ],
     "quiz_error": [ "Something went wrong with starting the quiz" ],
     "recording_failed": [ "Failed to record game. &1" ],
+    "rejoin": [ "&1, please rejoin the game" ],
+    "retry_name_fetch": [ "&1, could not fetch name, retrying" ],
     "scorn_admin": [ "Please behave @&1! -_-" ],
     "something": [ "something" ],
     "song": ["&1 (&2): \"&3\" by &4. url: &5"],

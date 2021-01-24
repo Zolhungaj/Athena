@@ -378,6 +378,8 @@ class Room {
             })
         }).catch(() => {
             this.unlock()
+            this.socket.lobby.changeToSpectator(playerData.name)
+            this.autoChat("retry_name_fetch", [playerData.name])
         })  
     }
     
@@ -408,6 +410,7 @@ class Room {
             })
             .catch(() => {
                 this.unlock()
+                this.autoChat("rejoin", [spectator.name])
             })
     }
 
@@ -491,11 +494,13 @@ class Room {
         //this.db.change_name(oldName, newName)
     }
 
-    start = () => {
+    start = async () => {
+        await this.lock()
         this.activePlayers = clone(this.players)
         this.socket.lobby.start()
         this.events.emit("game start", this.activePlayers)
         this.counter = 35
+        this.unlock()
     }
 }
 function clone(obj) {
