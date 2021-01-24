@@ -687,6 +687,8 @@ class ChatMonitor {
             this.autoChat("profile_unknown")
             return
         }
+        this.autoChat("profile_username", [originalName])
+        this.autoChat("profile_nickname", [name])
         switch(this.leaderboardType){
             case "rating":
                 const elo = await this.db.get_or_create_elo(player_id)
@@ -717,8 +719,7 @@ class ChatMonitor {
         const average_correct = await this.db.get_average_answer_time_correct(player_id)
         const average_wrong = await this.db.get_average_answer_time_wrong(player_id)
 
-        this.autoChat("profile_username", [originalName])
-        this.autoChat("profile_nickname", [name])
+        
         this.autoChat("profile_play_count", [play_count])
         this.autoChat("profile_song_count", [song_count])
         this.autoChat("profile_hit_count", [hit_count])
