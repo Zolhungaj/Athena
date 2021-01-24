@@ -172,14 +172,21 @@ class ChatMonitor {
             this.db.save_message(originalName, message)
             const reason = this.isBad(message)
             if(reason) {
-                this.isPrivileged(originalName, ()=>{this.autoChat("scorn_admin", [name])}, () => {
-                    this.kick(name, reason)
-                    this.socket.social.report("Verbal Abuse", reason, name)
+                this.isPrivileged(originalName).then((hasPrivilege) => {
+                    if(hasPrivilege){
+                        this.autoChat("scorn_admin", [name])
+                    }else{
+                        this.kick(name, reason)
+                        this.socket.social.report("Verbal Abuse", reason, name)
+                    }
                 })
             }
             if(message[0] === "/"){
                 this.handleCommand(originalName, message.slice(1), name)
             }
+        })
+        .catch(() => {
+            console.log("unable to get name for", sender)
         })
 
     }
@@ -719,7 +726,7 @@ class ChatMonitor {
         const average_correct = await this.db.get_average_answer_time_correct(player_id)
         const average_wrong = await this.db.get_average_answer_time_wrong(player_id)
 
-        
+
         this.autoChat("profile_play_count", [play_count])
         this.autoChat("profile_song_count", [song_count])
         this.autoChat("profile_hit_count", [hit_count])

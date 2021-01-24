@@ -8,19 +8,28 @@ class NameResolver {
         this.profileLock = 0
         this.lockoutTime = 1000
 
-        socket.on(EVENTS.PLAYER_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName))
-        socket.on(EVENTS.SPECTATOR_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName))
-        socket.on(EVENTS.FRIEND_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName))
-        socket.on(EVENTS.ALL_PLAYER_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName))
-        socket.on(EVENTS.PLAYER_PROFILE, (payload) => {
-            if(!payload.error){
-                this.nameToOriginalNameMap[payload.name.toLowerCase()] = {name: payload.name, originalName: payload.originalName} //this keeps the list nice and updated, especially if I get profiles for something else
-            }
+        this.listeners = [socket.on(EVENTS.PLAYER_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName)),
+            socket.on(EVENTS.SPECTATOR_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName)),
+            socket.on(EVENTS.FRIEND_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName)),
+            socket.on(EVENTS.ALL_PLAYER_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName)),
+            socket.on(EVENTS.PLAYER_PROFILE, (payload) => {
+                if(!payload.error){
+                    this.nameToOriginalNameMap[payload.name.toLowerCase()] = {name: payload.name, originalName: payload.originalName} //this keeps the list nice and updated, especially if I get profiles for something else
+                }
+            })
+        ]
+    }
+
+    destroy = () => {
+        this.listeners.forEach(listener => {
+            listener.destroy()
         })
     }
 
     getOriginalName = async (name) => {
         name = name.toLowerCase() //this is to help with the obvious case 
+        //console.log(name)
+        //console.log(this.nameToOriginalNameMap)
         if(this.nameToOriginalNameMap[name]){
             return this.nameToOriginalNameMap[name]
         }else{

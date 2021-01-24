@@ -113,6 +113,7 @@ class Bot{
             theSocialManager.destroy()
             forcedlogoff.destroy()
             serverrestart.destroy()
+            theNameResolver.destroy()
             this.destroy()
         }
 
