@@ -155,6 +155,7 @@ class Room {
             //console.log("tick", this.ingame, this.counter, this.time)
         }
         if(this.ingame){
+            this.unlock()
             return
         }
         if (Object.keys(this.players).length > 0){
@@ -347,6 +348,7 @@ class Room {
             this.db.get_player(originalName).then(async ({player_id, banned, level, avatar}) => {
                 if(banned) {
                     this.kick(player.name)
+                    this.unlock()
                     return
                 }
                 const newPlayer = !player_id
@@ -392,6 +394,7 @@ class Room {
                     .then(async ({player_id, banned}) => {
                         if(banned) {
                             this.kick(spectator.name)
+                            this.unlock()
                             return
                         }
                         const newPlayer = !player_id
