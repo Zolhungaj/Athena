@@ -355,7 +355,7 @@ class ChatMonitor {
                     else
                         this.autoChat("permission_denied", [sender])
                 }else{
-                    this.profile(sender)
+                    this.profile(senderNickname)
                 }
                 break
             case "leaderboard":
