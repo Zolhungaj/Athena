@@ -287,13 +287,13 @@ class ChatMonitor {
                         const answersong = (answers[1] || "").trim()
                         const answerartist = (answers[2] || "").trim()
                         if(answeranime){
-                            this.events.emit("bonus anime", sender, answeranime)
+                            this.events.emit("bonus anime", senderNickname, answeranime)
                         }
                         if(answersong){
-                            this.events.emit("bonus song", sender, answersong)
+                            this.events.emit("bonus song", senderNickname, answersong)
                         }
                         if(answerartist){
-                            this.events.emit("bonus artist", sender, answerartist)
+                            this.events.emit("bonus artist", senderNickname, answerartist)
                         }
                     }else{
                         this.autoChat("usage_answer")
@@ -306,7 +306,7 @@ class ChatMonitor {
                 if(parts[1]){
                     const answer = parts.slice(1).join(" ").trim()
                     if(answer){
-                        this.events.emit("bonus anime", sender, answer)
+                        this.events.emit("bonus anime", senderNickname, answer)
                     }
                     else{
                         this.autoChat("usage_answeranime")
@@ -321,7 +321,7 @@ class ChatMonitor {
                 if(parts[1]){
                     const answer = parts.slice(1).join(" ").trim()
                     if(answer){
-                        this.events.emit("bonus song", sender, answer)
+                        this.events.emit("bonus song", senderNickname, answer)
                     }
                     else{
                         this.autoChat("usage_answersong")
@@ -336,7 +336,7 @@ class ChatMonitor {
                 if(parts[1]){
                     const answer = parts.slice(1).join(" ").trim()
                     if(answer){
-                        this.events.emit("bonus artist", sender, answer)
+                        this.events.emit("bonus artist", senderNickname, answer)
                     }
                     else{
                         this.autoChat("usage_answerartist")
@@ -478,7 +478,7 @@ class ChatMonitor {
                     }else
                         this.autoChat("permission_denied", [senderNickname])
                 }else{
-                    target = sender
+                    target = senderNickname
                 }
                 if (target){
                     this.nameResolver.getOriginalName(target)
@@ -534,7 +534,7 @@ class ChatMonitor {
                 if(await this.isAdmin(sender)){
                     this.unban(parts[1], sender)
                 }else
-                    this.autoChat("permission_denied", [sender])
+                    this.autoChat("permission_denied", [senderNickname])
                 break
             case "pause":
                 this.chat("disabled due to bug")

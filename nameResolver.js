@@ -66,8 +66,8 @@ class NameResolver {
         const oldNameLower = oldName.toLowerCase()
         const newNameLower = newName.toLowerCase()
         this.getOriginalName(newName) //in case this player was never scanned before
-        .then((originalName) => { 
-            this.nameToOriginalNameMap[newNameLower] = {name: newName, originalName} // this should have been set by getOriginalName, but who knows
+        .then(({name, originalName}) => { 
+            //this.nameToOriginalNameMap[newNameLower] = {name, originalName} // this should have been set by getOriginalName, but who knows
         })
         .catch((reason) => {
             if(this.debug){
