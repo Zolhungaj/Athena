@@ -167,7 +167,7 @@ class ChatController {
             return
         }
         msg = this.wordCensor(msg)
-        const MESSAGE_LENGTH_LIMIT = 200
+        const MESSAGE_LENGTH_LIMIT = 150
         const words = msg.split(" ")
         let currentMessage = ""
         if (words[0].length > MESSAGE_LENGTH_LIMIT) {
