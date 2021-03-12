@@ -535,77 +535,66 @@ class Database{
         })
     }
 
-    add_valour(username, referer=null, callback=this.dud){
+    add_valour(username, referer=null){
         //valour is a joke I added to hone my skills on recursive database calls
-        const success = (err) => {
-            if(err){
-                callback(false)
-            }else{
-                this.change_valour_surplus(referer, -1, callback)
+        return new Promise((resolve, reject) =>{
+            const success = (err) => {
+                if(err){
+                    reject(err)
+                }else{
+                    const ret = await this.change_valour_surplus(referer, -1, callback)
+                    resolve(ret)
+                }
             }
-        }
-        const outer_ret = (player_id) => {
-            const inner_ret = (referer_id) => {
-                referer_id = referer_id || 0
-                this.conn.run(`INSERT INTO valour (player_id, surplus, referer_id) VALUES(
-                    ?,
-                    2,
-                    ?
-                    )`, [player_id, referer_id], success)
-            }
-            if(!player_id){
-                callback(false)
-            }else{
-                this.get_player_id(referer, inner_ret)
-            }
-        }
-        const ret = (surplus) => {
+            const surplus = await this.get_valour_surplus(referer)
             if(surplus <= 0){
-                callback(false)
-            }else{
-                this.get_player_id(username, outer_ret)
+                reject("not enough surplus")
             }
-        }
-        this.get_valour_surplus(referer, ret)
+            const player_id = await this.get_player_id(username)
+            if(!player_id){
+                reject(`unable to get player_id for ${username}`)
+            }
+            const referer_id = await this.get_player_id(referer) || 0
+            this.conn.run(`INSERT INTO valour (player_id, surplus, referer_id) VALUES(
+                ?,
+                2,
+                ?
+                )`, [player_id, referer_id], success)
+        })
     }
 
-    has_valour(username, callback){
-        const ret = (player_id) => {
+    has_valour(username){
+        return new Promise((resolve, reject) =>{
             const success = (err, row) => {
-                callback(!err&&row)
+                if(err) reject(err)
+                else resolve(Boolean(row))
             }
-            this.conn.execute(`
-                SELECT player_id
-                FROM valour
-                WHERE player_id = ?
-            `, [player_id], success)
-        }
-        this.get_player_id(username, ret)
+            this.get_player_id(username).then(player_id => {
+                this.conn.execute(`
+                    SELECT player_id
+                    FROM valour
+                    WHERE player_id = ?
+                `, [player_id], success)
+            }).catch(() => resolve(false))
+        })
     }
 
-    get_valour_surplus(username, callback){
-        const ret1 = (bool) => {
-            if(bool){
-                this.get_player_id(username, ret2)
-            }else{
-                callback(-1)
+    get_valour_surplus(username){
+        return new Promise((resolve, reject) =>{
+            const success = (err, row) => {
+                if(err) reject(err)
+                else resolve(row.surplus) //if row.surplus does not exist something is horribly wrong
             }
-        }
-        const ret2 = (player_id) => {
-            return this.conn.get(`
+            if(!await this.has_valour(username)){
+                reject(`${username} does not have valour`)
+            }
+            const player_id = await this.get_player_id(username)
+            this.conn.get(`
                 SELECT surplus
                 FROM valour
                 WHERE player_id = ?
             `, [player_id], success)
-        }
-        const success = (err, row) => {
-            if(err){
-                callback(-2)
-            }else{
-                callback(row?row.surplus:-3)
-            }
-        }
-        this.has_valour(username, ret1)
+        })
     }
 
     change_valour_surplus(username, change, callback=this.dud){
