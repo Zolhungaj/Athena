@@ -1,3 +1,5 @@
+const { reject } = require("bluebird")
+
 const sqlite3 = require("sqlite3").verbose()
 
 //this was ported from the previous contest bot, it was originally in python
@@ -123,14 +125,20 @@ class Database{
             artist TEXT,
             link TEXT
         );`)
-        c.run(`CREATE TABLE IF NOT EXISTS gamesong(
-            game_id INTEGER NOT NULL,
-            song_id INTEGER NOT NULL,
-            ordinal INTEGER NOT NULL,
-            PRIMARY KEY(game_id, ordinal),
-            FOREIGN KEY(game_id) REFERENCES game(game_id),
-            FOREIGN KEY(song_id) REFERENCES song(song_id)
-        );`)
+        c.run(`CREATE OR REPLACE VIEW valour_record
+            WITH RECURSIVE record (level, player_id, referer_id) AS
+                (SELECT 0, v.player_id AS player_id, v.referer_id AS referer_id
+                    FROM valour v
+                        WHERE v.referer_id IS NULL
+                UNION ALL
+                SELECT r.level+1, v.player_id, v.referer_id
+                    FROM record AS r
+                        JOIN valour v
+                            ON r.player_id = v.referer_id
+                )
+            
+            SELECT level, player_id, referer_id from record
+        ;`)
         
         
         this.conn.run(`INSERT INTO player (player_id, username, truename) VALUES(
@@ -204,6 +212,15 @@ class Database{
             this.conn.get(`SELECT player_id FROM player WHERE username=(?)`, [username.toLowerCase()], success)
 
         })
+    }
+
+    async get_player_id_strict(username){
+        const player_id = await this.get_player_id(username)
+        if(player_id === null){
+            throw `get_player_id_strict: ${username} is not a known player.`
+        }else{
+            return player_id
+        }
     }
 
     get_or_create_player_id(username){
@@ -390,14 +407,14 @@ class Database{
         })
     }
 
-    ban_readable(username=null, banner=null, callback){
+    ban_readable(username=null, banner=null){
         return new Promise((resolve, reject) =>{ 
             const success = (err, rows) => {
                 if (err) reject(err)
                 else resolve(rows)
             }
             let query = `
-            SELECT p.username as thePlayer, reason, p2.username as theBanner, time
+            SELECT p.username as player_username, reason, p2.username as banner_username, time
             FROM banned AS b
             NATURAL JOIN player AS p
             JOIN player AS p2
@@ -420,7 +437,7 @@ class Database{
         })
     }
 
-    add_administrator(username, source=undefined){
+    add_administrator(username, source=null){
         return new Promise((resolve, reject) => { 
             const execute = (player_id, source_id) => {
                 const success = (err) => {
@@ -542,7 +559,7 @@ class Database{
                 if(err){
                     reject(err)
                 }else{
-                    const ret = await this.change_valour_surplus(referer, -1, callback)
+                    const ret = await this.change_valour_surplus(referer, -1)
                     resolve(ret)
                 }
             }
@@ -551,12 +568,8 @@ class Database{
                 reject("not enough surplus")
                 return
             }
-            const player_id = await this.get_player_id(username)
-            if(!player_id){
-                reject(`unable to get player_id for ${username}`)
-                return
-            }
-            const referer_id = await this.get_player_id(referer) || 0
+            const player_id = await this.get_player_id_strict(username)
+            const referer_id = referer === null? 0 : await this.get_player_id_strict(referer)
             this.conn.run(`INSERT INTO valour (player_id, surplus, referer_id) VALUES(
                 ?,
                 2,
@@ -571,13 +584,28 @@ class Database{
                 if(err) reject(err)
                 else resolve(Boolean(row))
             }
-            this.get_player_id(username).then(player_id => {
-                this.conn.execute(`
-                    SELECT player_id
-                    FROM valour
-                    WHERE player_id = ?
-                `, [player_id], success)
-            }).catch(() => resolve(false))
+            const player_id = await this.get_player_id_strict(username)
+            this.conn.execute(`
+                SELECT player_id
+                FROM valour
+                WHERE player_id = ?
+            `, [player_id], success)
+        })
+    }
+
+    get_valour_level(username){
+        return new Promise((resolve, reject) =>{ 
+            const success = (err, row) => {
+                if(err) reject(err)
+                else if (!row) resolve(Number.NaN)
+                else resolve(row.level)
+            }
+            const player_id = await this.get_player_id_strict(username)
+            this.conn.get(`
+                SELECT level
+                FROM valour_record
+                WHERE player_id = ?
+            `, [player_id], success)
         })
     }
 
@@ -591,7 +619,7 @@ class Database{
                 reject(`${username} does not have valour`)
                 return
             }
-            const player_id = await this.get_player_id(username)
+            const player_id = await this.get_player_id_strict(username)
             this.conn.get(`
                 SELECT surplus
                 FROM valour
@@ -611,14 +639,12 @@ class Database{
                 resolve(false)
             }else{
                 const new_surplus = surplus + change
-                const inner_ret = (player_id) => {
-                    this.conn.run(`
-                        UPDATE valour
-                        SET surplus = ?
-                        WHERE player_id = ?
-                    `, [new_surplus, player_id], success)
-                }
-                this.get_player_id(username, inner_ret)
+                const player_id = await this.get_player_id_strict(username)
+                this.conn.run(`
+                    UPDATE valour
+                    SET surplus = ?
+                    WHERE player_id = ?
+                `, [new_surplus, player_id], success)
             }
         })
     }
@@ -631,20 +657,11 @@ class Database{
                 else resolve(rows)
             }
             this.conn.all(`
-            WITH RECURSIVE record (lvl, player_id, referer_id) AS
-            (SELECT 0, v.player_id AS player_id, v.referer_id AS referer_id
-                FROM valour v
-                    WHERE v.referer_id IS NULL
-            UNION ALL
-            SELECT r.lvl+1, v.player_id, v.referer_id
-                FROM record AS r
-                    JOIN valour v
-                        ON r.player_id = v.referer_id)
-            SELECT r.lvl AS level, p.truename AS player_truename, p2.truename AS referer_truename
-            FROM record AS r
+            SELECT r.level AS level, p.truename AS player_truename, p2.truename AS referer_truename
+            FROM valour_record AS r
             NATURAL JOIN player AS p
             LEFT OUTER JOIN player as p2 on p2.player_id = r.referer_id
-            ORDER BY r.lvl, p.truename, p2.truename`, [], ret)
+            ORDER BY level, p.truename, p2.truename`, [], ret)
         })
     }
 
