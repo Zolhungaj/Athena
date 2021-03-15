@@ -549,10 +549,12 @@ class Database{
             const surplus = await this.get_valour_surplus(referer)
             if(surplus <= 0){
                 reject("not enough surplus")
+                return
             }
             const player_id = await this.get_player_id(username)
             if(!player_id){
                 reject(`unable to get player_id for ${username}`)
+                return
             }
             const referer_id = await this.get_player_id(referer) || 0
             this.conn.run(`INSERT INTO valour (player_id, surplus, referer_id) VALUES(
@@ -587,6 +589,7 @@ class Database{
             }
             if(!await this.has_valour(username)){
                 reject(`${username} does not have valour`)
+                return
             }
             const player_id = await this.get_player_id(username)
             this.conn.get(`
@@ -597,13 +600,15 @@ class Database{
         })
     }
 
-    change_valour_surplus(username, change, callback=this.dud){
-        const success = (err) => {
-            callback(!err)
-        }
-        const ret = (surplus) => {
-            if(surplus < 0){
-                callback(false)
+    change_valour_surplus(username, change){
+        return new Promise((resolve, reject) =>{
+            const success = (err) => {
+                if (err) reject(err)
+                else resolve(true)
+            }
+            const surplus = await this.get_valour_surplus(username)
+            if(surplus + change < 0){
+                resolve(false)
             }else{
                 const new_surplus = surplus + change
                 const inner_ret = (player_id) => {
@@ -615,30 +620,32 @@ class Database{
                 }
                 this.get_player_id(username, inner_ret)
             }
-        }
-        this.get_valour_surplus(username, ret)    
+        })
     }
         
 
-    valour_readable(callback){
-        const ret = (err, rows) => {
-            callback(err?[]:rows)
-        }
-        this.conn.all(`
-        WITH RECURSIVE record (lvl, player_id, referer_id) AS
-        (SELECT 0, v.player_id AS player_id, v.referer_id AS referer_id
-            FROM valour v
-                WHERE v.referer_id IS NULL
-        UNION ALL
-        SELECT r.lvl+1, v.player_id, v.referer_id
+    valour_readable(){
+        return new Promise((resolve, reject) =>{
+            const ret = (err, rows) => {
+                if(err) reject(err)
+                else resolve(rows)
+            }
+            this.conn.all(`
+            WITH RECURSIVE record (lvl, player_id, referer_id) AS
+            (SELECT 0, v.player_id AS player_id, v.referer_id AS referer_id
+                FROM valour v
+                    WHERE v.referer_id IS NULL
+            UNION ALL
+            SELECT r.lvl+1, v.player_id, v.referer_id
+                FROM record AS r
+                    JOIN valour v
+                        ON r.player_id = v.referer_id)
+            SELECT r.lvl AS level, p.truename AS player_truename, p2.truename AS referer_truename
             FROM record AS r
-                JOIN valour v
-                    ON r.player_id = v.referer_id)
-        SELECT r.lvl, p.username, p2.username
-        FROM record AS r
-        NATURAL JOIN player AS p
-        LEFT OUTER JOIN player as p2 on p2.player_id = r.referer_id
-        ORDER BY r.lvl, p.username, p2.username`, [], ret)
+            NATURAL JOIN player AS p
+            LEFT OUTER JOIN player as p2 on p2.player_id = r.referer_id
+            ORDER BY r.lvl, p.truename, p2.truename`, [], ret)
+        })
     }
 
     get_song_id(song){
