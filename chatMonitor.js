@@ -587,6 +587,19 @@ class ChatMonitor {
                 }
                 break
             
+            case "valour":
+                if(await this.db.has_valour(sender)){
+                    this.chat("yes [test]")
+                }
+                break
+            case "givemevalour":
+                this.db.add_valour(sender)
+                break
+            case "givevalour":
+                this.db.add_valour(parts[1], sender)
+                break
+            case "listvalour":
+                this.dv.valour_readable.then(rows => rows.forEach(row => this.chat(`${row.level} | ${row.level} | ${row.referer_truename}`)))
             default:
                 this.autoChat("unknown_command")
                 break
