@@ -552,10 +552,16 @@ class Database{
         })
     }
 
-    add_valour(username, referer=null){
+    async add_valour(username, referer=null){
         //valour is a joke I added to hone my skills on recursive database calls
+        const surplus = await this.get_valour_surplus(referer)
+        if(surplus <= 0){
+            throw "not enough surplus"
+        }
+        const player_id = await this.get_player_id_strict(username)
+        const referer_id = referer === null? 0 : await this.get_player_id_strict(referer)
         return new Promise((resolve, reject) =>{
-            const success = (err) => {
+            const success = async (err) => {
                 if(err){
                     reject(err)
                 }else{
@@ -563,13 +569,6 @@ class Database{
                     resolve(ret)
                 }
             }
-            const surplus = await this.get_valour_surplus(referer)
-            if(surplus <= 0){
-                reject("not enough surplus")
-                return
-            }
-            const player_id = await this.get_player_id_strict(username)
-            const referer_id = referer === null? 0 : await this.get_player_id_strict(referer)
             this.conn.run(`INSERT INTO valour (player_id, surplus, referer_id) VALUES(
                 ?,
                 2,
@@ -578,13 +577,13 @@ class Database{
         })
     }
 
-    has_valour(username){
-        return new Promise((resolve, reject) =>{
+    async has_valour(username){
+        const player_id = await this.get_player_id_strict(username)
+        return new Promise(async (resolve, reject) =>{
             const success = (err, row) => {
                 if(err) reject(err)
                 else resolve(Boolean(row))
             }
-            const player_id = await this.get_player_id_strict(username)
             this.conn.execute(`
                 SELECT player_id
                 FROM valour
@@ -593,14 +592,14 @@ class Database{
         })
     }
 
-    get_valour_level(username){
+    async get_valour_level(username){
+        const player_id = await this.get_player_id_strict(username)
         return new Promise((resolve, reject) =>{ 
             const success = (err, row) => {
                 if(err) reject(err)
                 else if (!row) resolve(Number.NaN)
                 else resolve(row.level)
             }
-            const player_id = await this.get_player_id_strict(username)
             this.conn.get(`
                 SELECT level
                 FROM valour_record
@@ -609,17 +608,16 @@ class Database{
         })
     }
 
-    get_valour_surplus(username){
+    async get_valour_surplus(username){
+        const player_id = await this.get_player_id_strict(username)
+        if(!await this.has_valour(username)){
+            throw `${username} does not have valour`
+        }
         return new Promise((resolve, reject) =>{
             const success = (err, row) => {
                 if(err) reject(err)
                 else resolve(row.surplus) //if row.surplus does not exist something is horribly wrong
             }
-            if(!await this.has_valour(username)){
-                reject(`${username} does not have valour`)
-                return
-            }
-            const player_id = await this.get_player_id_strict(username)
             this.conn.get(`
                 SELECT surplus
                 FROM valour
@@ -628,24 +626,24 @@ class Database{
         })
     }
 
-    change_valour_surplus(username, change){
+    async change_valour_surplus(username, change){
+        const surplus = await this.get_valour_surplus(username)
+        if(surplus + change < 0){
+            return false
+        }
+        const new_surplus = surplus + change
+        const player_id = await this.get_player_id_strict(username)
         return new Promise((resolve, reject) =>{
             const success = (err) => {
                 if (err) reject(err)
                 else resolve(true)
             }
-            const surplus = await this.get_valour_surplus(username)
-            if(surplus + change < 0){
-                resolve(false)
-            }else{
-                const new_surplus = surplus + change
-                const player_id = await this.get_player_id_strict(username)
-                this.conn.run(`
-                    UPDATE valour
-                    SET surplus = ?
-                    WHERE player_id = ?
-                `, [new_surplus, player_id], success)
-            }
+            this.conn.run(`
+                UPDATE valour
+                SET surplus = ?
+                WHERE player_id = ?
+            `, [new_surplus, player_id], success)
+            
         })
     }
         
