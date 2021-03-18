@@ -182,7 +182,7 @@ class ChatMonitor {
                 })
             }
             if(message[0] === "/"){
-                this.handleCommand(originalName, message.slice(1), name)
+                this.handleCommandWrapper(originalName, message.slice(1), name)
             }
         })
         .catch(() => {
@@ -227,6 +227,14 @@ class ChatMonitor {
                 this.chat("if you see this open an issue on github plz CODE=" + action)
 
         }
+    }
+
+    handleCommandWrapper = (sender, command, senderNickname) => {
+        this.handleCommand(sender, command, senderNickname).then(() => {})
+        .catch(e => {
+            //console.log(e)
+            this.chat(e.message)
+        })
     }
 
     handleCommand = async (sender, command, senderNickname) => {
@@ -590,16 +598,19 @@ class ChatMonitor {
             case "valour":
                 if(await this.db.has_valour(sender)){
                     this.chat("yes [test]")
+                }else{
+                    this.chat("no")
                 }
                 break
             case "givemevalour":
-                this.db.add_valour(sender)
+                await this.db.add_valour(sender)
                 break
             case "givevalour":
-                this.db.add_valour(parts[1], sender)
+                await this.db.add_valour(parts[1], sender)
                 break
             case "listvalour":
-                this.dv.valour_readable.then(rows => rows.forEach(row => this.chat(`${row.level} | ${row.level} | ${row.referer_truename}`)))
+                this.db.valour_readable().then(rows => rows.forEach(row => this.chat(`${row.player_truename} | ${row.level} | ${row.referer_truename}`)))
+                break
             default:
                 this.autoChat("unknown_command")
                 break

@@ -125,7 +125,7 @@ class Database{
             artist TEXT,
             link TEXT
         );`)
-        c.run(`CREATE OR REPLACE VIEW valour_record
+        c.run(`CREATE VIEW IF NOT EXISTS valour_record AS
             WITH RECURSIVE record (level, player_id, referer_id) AS
                 (SELECT 0, v.player_id AS player_id, v.referer_id AS referer_id
                     FROM valour v
@@ -554,18 +554,18 @@ class Database{
 
     async add_valour(username, referer=null){
         //valour is a joke I added to hone my skills on recursive database calls
-        const surplus = await this.get_valour_surplus(referer)
+        const surplus = referer === null ? 999 : await this.get_valour_surplus(referer)
         if(surplus <= 0){
             throw "not enough surplus"
         }
         const player_id = await this.get_player_id_strict(username)
-        const referer_id = referer === null? 0 : await this.get_player_id_strict(referer)
+        const referer_id = referer === null ? null : await this.get_player_id_strict(referer)
         return new Promise((resolve, reject) =>{
             const success = async (err) => {
                 if(err){
                     reject(err)
                 }else{
-                    const ret = await this.change_valour_surplus(referer, -1)
+                    const ret = referer === null ? true : await this.change_valour_surplus(referer, -1)
                     resolve(ret)
                 }
             }
@@ -584,7 +584,7 @@ class Database{
                 if(err) reject(err)
                 else resolve(Boolean(row))
             }
-            this.conn.execute(`
+            this.conn.get(`
                 SELECT player_id
                 FROM valour
                 WHERE player_id = ?
