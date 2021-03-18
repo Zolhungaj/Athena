@@ -1,0 +1,25 @@
+{
+  "name": "amq-athena",
+  "version": "1.0.0",
+  "description": "A bot for hosting rooms at animemusicquiz.com",
+  "main": "bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zolhungaj/Athena.git"
+  },
+  "author": "Zolhungaj",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Zolhungaj/Athena/issues"
+  },
+  "homepage": "https://github.com/Zolhungaj/Athena#readme",
+  "dependencies": {
+    "csv-parse": "^4.15.3",
+    "request-promise": "^4.2.5",
+    "socket.io-client": "2.3.0",
+    "sqlite3": "^5.0.2"
+  }
+}
