@@ -217,7 +217,7 @@ class Database{
     async get_player_id_strict(username){
         const player_id = await this.get_player_id(username)
         if(player_id === null){
-            throw `get_player_id_strict: ${username} is not a known player.`
+            throw Error(`get_player_id_strict: ${username} is not a known player.`)
         }else{
             return player_id
         }
@@ -556,30 +556,71 @@ class Database{
         //valour is a joke I added to hone my skills on recursive database calls
         const surplus = referer === null ? 999 : await this.get_valour_surplus(referer)
         if(surplus <= 0){
-            throw "not enough surplus"
+            throw Error("not enough surplus")
         }
         const player_id = await this.get_player_id_strict(username)
+        const player_has_valour = await this.has_valour(username)
+        const player_parent = player_has_valour? await this.valour_get_parent(username) : null
+        const player_level = await this.get_valour_level(username)
+        const referer_level = referer === null ? 0 : await this.get_valour_level(referer)
+        if(player_level - 1 <= referer_level){
+            throw Error(`${username}'s valour rank will not increase`)
+        }
+        const default_surplus = Math.floor(referer_level * 0.5) + 2
         const referer_id = referer === null ? null : await this.get_player_id_strict(referer)
         return new Promise((resolve, reject) =>{
             const success = async (err) => {
                 if(err){
                     reject(err)
                 }else{
-                    const ret = referer === null ? true : await this.change_valour_surplus(referer, -1)
-                    resolve(ret)
+                    resolve(referer === null ? true : await this.change_valour_surplus(referer, -1))
                 }
             }
-            this.conn.run(`INSERT INTO valour (player_id, surplus, referer_id) VALUES(
-                ?,
-                2,
-                ?
-                )`, [player_id, referer_id], success)
+            if(player_has_valour){
+                this.conn.run(`UPDATE valour SET referer_id = $referer_id WHERE player_id = $player_id
+                    `, {$player_id: player_id, $referer_id: referer_id}, async (err) => {
+                        if(err) reject(err)
+                        else {
+                            await this.change_valour_surplus(player_parent, 1)
+                            resolve(referer === null ? true : await this.change_valour_surplus(referer, -1))
+                        }
+                    })
+            }else{
+                this.conn.run(`INSERT INTO valour (player_id, surplus, referer_id) VALUES(
+                    ?,
+                    ?,
+                    ?
+                    )`, [player_id, default_surplus, referer_id], success)
+            }
+        })
+    }
+
+    async valour_get_parent(username){
+        const player_id = await this.get_player_id_strict(username)
+        if(!await this.has_valour(username)){
+            throw Error(`${username} has no valour and thus has no parent`)
+        }
+        if(await this.get_valour_level(username) === 0){
+            return null
+        }
+        return new Promise((resolve, reject) => {
+            const success = (err, row) => {
+                if(err) reject(err)
+                else resolve(row.truename)
+            }
+            this.conn.get(`
+                SELECT p.truename
+                FROM valour AS v
+                INNER JOIN player AS p
+                    ON v.referer_id = p.player_id 
+                WHERE v.player_id = ?
+            `, [player_id], success)
         })
     }
 
     async has_valour(username){
         const player_id = await this.get_player_id_strict(username)
-        return new Promise(async (resolve, reject) =>{
+        return new Promise((resolve, reject) =>{
             const success = (err, row) => {
                 if(err) reject(err)
                 else resolve(Boolean(row))
@@ -597,7 +638,7 @@ class Database{
         return new Promise((resolve, reject) =>{ 
             const success = (err, row) => {
                 if(err) reject(err)
-                else if (!row) resolve(Number.NaN)
+                else if (!row) resolve(Number.POSITIVE_INFINITY)
                 else resolve(row.level)
             }
             this.conn.get(`
@@ -611,7 +652,7 @@ class Database{
     async get_valour_surplus(username){
         const player_id = await this.get_player_id_strict(username)
         if(!await this.has_valour(username)){
-            throw `${username} does not have valour`
+            throw Error(`${username} does not have valour`)
         }
         return new Promise((resolve, reject) =>{
             const success = (err, row) => {
