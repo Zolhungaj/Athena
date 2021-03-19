@@ -1,6 +1,7 @@
 const {SocketWrapper, getToken, EVENTS, sleep} = require('./node/amq-api')
 const fs = require("fs")
 const util = require('util');
+const { COPYFILE_FICLONE_FORCE } = require('constants');
 class ChatMonitor {
     constructor(socket, events, db, nameResolver, selfName, leaderboardType) {
         this.socket = socket
@@ -256,6 +257,9 @@ class ChatMonitor {
                         this.autoChat("help_admin")
                     if (await this.isModerator(sender))
                         this.autoChat("help_moderator")
+                    if (await this.db.has_valour(sender)){
+                        this.autoChat("help_valour_commands")
+                    }
                 }
                 break
             case "lobby":
@@ -817,18 +821,31 @@ class ChatMonitor {
             output += onetotwelve[10] + fifty
             num -= 40
         }
+        let remainder = Math.round((num - Math.floor(num))*12) //should be a number in the range 0-12
+        num = Math.floor(num)
+        if(remainder === 12){
+            remainder = 0
+            num++
+        }
         if(num <= 0){
-            return output
         }
         else if(num <= 12){
             output += onetotwelve[num]
-            return output
         }else{
             output += onetotwelve[10].repeat(num/10)
             num %= 10
             output += onetotwelve[num]
-            return output
         }
+        if(remainder !== 0){
+            //fractions in roman numerals are given as number of dots/12, S represents 6 dots
+            const representations = ["", "·", ":", "∴", "∷", "⁙", "S"]
+            if(remainder >= 6){
+                output += representations[6]
+                remainder -= 6
+            }
+            output += representations[remainder]
+        }
+        return output
     }
 
     async profile(username){

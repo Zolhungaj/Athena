@@ -132,6 +132,7 @@
     "help_unban": [ "Usage: unban [username]| Unbans a player." ],
     "help_pause": [ "Usage: pause| Pauses the game, duh." ],
     "help_unpause": [ "Usage: unpause| Resumes the game." ],
+    "help_valour_commands": [ "Valour commands: valour, givevalour, grantvalour(admin only) givemevalour(admin only)" ],
     "help": [ "Common commands: help, about, lobby, missed, list, elo, answer, profile, leaderboard, friend, pause, unpause"],
     "idle": [ "Idle message!" ],
     "kick_chat": [ "Kicked player &1 for &2." ],
