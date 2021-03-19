@@ -560,7 +560,7 @@ class Database{
         }
         const player_id = await this.get_player_id_strict(username)
         const player_has_valour = await this.has_valour(username)
-        const player_parent = player_has_valour? await this.valour_get_parent(username) : null
+        const player_parent = player_has_valour? await this.get_valour_parent(username) : null
         const player_level = await this.get_valour_level(username)
         const referer_level = referer === null ? 0 : await this.get_valour_level(referer)
         if(player_level - 1 <= referer_level){
@@ -595,7 +595,7 @@ class Database{
         })
     }
 
-    async valour_get_parent(username){
+    async get_valour_parent(username){
         const player_id = await this.get_player_id_strict(username)
         if(!await this.has_valour(username)){
             throw Error(`${username} has no valour and thus has no parent`)
@@ -614,6 +614,33 @@ class Database{
                 INNER JOIN player AS p
                     ON v.referer_id = p.player_id 
                 WHERE v.player_id = ?
+            `, [player_id], success)
+        })
+    }
+    
+    async get_valour_child_count(username){
+        const player_id = await this.get_player_id_strict(username)
+        if(!await this.has_valour(username)){
+            throw Error(`${username} has no valour and thus has no children`)
+        }
+        return new Promise((resolve, reject) => {
+            const success = (err, row) => {
+                if(err) reject(err)
+                else resolve(row.count)
+            }
+            this.conn.get(`
+            WITH RECURSIVE record (level, player_id, referer_id) AS
+            (SELECT 0, v.player_id AS player_id, v.referer_id AS referer_id
+                FROM valour v
+                    WHERE v.referer_id = ?
+            UNION ALL
+            SELECT r.level+1, v.player_id, v.referer_id
+                FROM record AS r
+                    JOIN valour v
+                        ON r.player_id = v.referer_id
+            )
+        
+            SELECT count(*) as count from record
             `, [player_id], success)
         })
     }

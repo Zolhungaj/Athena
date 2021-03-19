@@ -597,19 +597,38 @@ class ChatMonitor {
             
             case "valour":
                 if(await this.db.has_valour(sender)){
-                    this.chat("yes [test]")
+                    const level = await this.db.get_valour_level(sender)
+                    const surplus = await this.db.get_valour_surplus(sender)
+                    const parent = await this.db.get_valour_parent(sender)
+                    const childrenCount = await this.db.get_valour_child_count(sender)
+                    this.autoChat("valour_status", [senderNickname, level, surplus, parent, childrenCount])
                 }else{
-                    this.chat("no")
+                    this.autoChat("valour_negative", [senderNickname])
                 }
                 break
             case "givemevalour":
-                await this.db.add_valour(sender)
+                if(await this.isAdmin(sender)){
+                    await this.db.add_valour(sender)
+                }else{
+                    this.autoChat("permission_denied", [senderNickname])
+                }
+                break
+            case "grantvalour":
+                if(await this.isAdmin(sender)){
+                    await this.db.add_valour(parts[1])
+                }else{
+                    this.autoChat("permission_denied", [senderNickname])
+                }
                 break
             case "givevalour":
                 await this.db.add_valour(parts[1], sender)
                 break
             case "listvalour":
-                this.db.valour_readable().then(rows => rows.forEach(row => this.chat(`${row.player_truename} | ${row.level} | ${row.referer_truename}`)))
+                if(await this.isAdmin(sender)){
+                    this.db.valour_readable().then(rows => rows.forEach(row => this.chat(`${row.player_truename} | ${row.level} | ${row.referer_truename}`)))
+                }else{
+                    this.autoChat("permission_denied", [senderNickname])
+                }
                 break
             default:
                 this.autoChat("unknown_command")
