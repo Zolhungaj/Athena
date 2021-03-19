@@ -597,13 +597,18 @@ class ChatMonitor {
             
             case "valour":
                 if(await this.db.has_valour(sender)){
-                    const level = await this.db.get_valour_level(sender)
-                    const surplus = await this.db.get_valour_surplus(sender)
+                    const level = this.number_to_roman_numeral(await this.db.get_valour_level(sender))
+                    const surplus = this.number_to_roman_numeral(await this.db.get_valour_surplus(sender))
                     const parent = await this.db.get_valour_parent(sender)
-                    const childrenCount = await this.db.get_valour_child_count(sender)
+                    const childrenCount = this.number_to_roman_numeral(await this.db.get_valour_child_count(sender))
                     this.autoChat("valour_status", [senderNickname, level, surplus, parent, childrenCount])
                 }else{
                     this.autoChat("valour_negative", [senderNickname])
+                }
+                break
+            case "roman":
+                if(Number(parts[1]) < 100000 && Number(parts[1]) > -100000){
+                    this.chat(this.number_to_roman_numeral(Number(parts[1])))
                 }
                 break
             case "givemevalour":
@@ -745,6 +750,87 @@ class ChatMonitor {
             })
         })
     }
+
+    number_to_roman_numeral(num){
+        if(num === 0){
+            return '☆'
+        }
+        const thousand = 'Ⅿ'
+        const fivehundred = 'Ⅾ'
+        const hundred = 'Ⅽ'
+        const fifty = 'Ⅼ'
+        const onetotwelve = ['','Ⅰ','Ⅱ','Ⅲ','Ⅳ','Ⅴ','Ⅵ','Ⅶ','Ⅷ','Ⅸ','Ⅹ','Ⅺ','Ⅻ']
+        let output = ""
+        if(num < 0){
+            output += "÷"
+            num *= -1
+        }
+        output += thousand.repeat(num/1000)
+        num %= 1000
+        if(num === 999){
+            output += onetotwelve[1] + thousand
+            return output
+        }
+        if(num >= 990){
+            output += onetotwelve[10] + thousand
+            num -= 990
+        }
+        if(num >= 900){
+            output += hundred + thousand
+            num -= 900
+        }
+        if(num >= 500){
+            output += fivehundred
+            num -= 500
+        }
+        if(num === 499){
+            output += onetotwelve[1] + fivehundred
+            return output
+        }
+        if(num >= 490){
+            output += onetotwelve[10] + fivehundred
+            num -= 490
+        }
+        if(num >= 400){
+            output += hundred + fivehundred
+            num -= 400
+        }
+        output += hundred.repeat(num/100)
+        num %= 100
+        if(num === 99){
+            output += onetotwelve[1] + hundred
+            return output
+        }
+        if(num >= 90){
+            output += onetotwelve[10] + hundred
+            num -= 90
+        }
+        if(num >= 50){
+            output += fifty
+            num -= 50
+        }
+        if(num === 49){
+            output += onetotwelve[1] + fifty
+            return output
+        }
+        if(num >= 40){
+            output += onetotwelve[10] + fifty
+            num -= 40
+        }
+        if(num <= 0){
+            return output
+        }
+        else if(num <= 12){
+            output += onetotwelve[num]
+            return output
+        }else{
+            output += onetotwelve[10].repeat(num/10)
+            num %= 10
+            output += onetotwelve[num]
+            return output
+        }
+    }
+
     async profile(username){
         try{
             var {name, originalName} = await this.nameResolver.getOriginalName(username) //a very rare var
@@ -759,6 +845,11 @@ class ChatMonitor {
         }
         this.autoChat("profile_username", [originalName])
         this.autoChat("profile_nickname", [name])
+        if(await this.db.has_valour(originalName)){
+            const level = this.number_to_roman_numeral(await this.db.get_valour_level(originalName))
+            const count = this.number_to_roman_numeral(await this.db.get_valour_child_count(originalName))
+            this.autoChat("profile_valour", [level, count])
+        }
         switch(this.leaderboardType){
             case "rating":
                 const elo = await this.db.get_or_create_elo(player_id)

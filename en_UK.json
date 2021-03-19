@@ -166,6 +166,7 @@
     "profile_song_count": [ "Total songs played: &1" ],
     "profile_unknown": [ "Unknown profile" ],
     "profile_username": [ "Username: &1" ],
+    "profile_valour": [ "&1 / &2" ],
     "profile_wins": [ "Games won: &1" ],
     "quiz_error": [ "Something went wrong with starting the quiz" ],
     "recording_failed": [ "Failed to record game. &1" ],
