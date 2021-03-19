@@ -619,7 +619,7 @@ class Database{
     }
 
     async has_valour(username){
-        const player_id = await this.get_player_id_strict(username)
+        const player_id = await this.get_player_id(username)
         return new Promise((resolve, reject) =>{
             const success = (err, row) => {
                 if(err) reject(err)
