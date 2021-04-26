@@ -9,3 +9,6 @@ Also please don't use the bot to annoy users, cheat or otherwise damage the game
 
 
 Requires node v14
+
+
+Ported and upgraded from https://github.com/Zolhungaj/AMQ-contest-bot
