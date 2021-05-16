@@ -160,6 +160,36 @@ class Database{
         this.conn.close()
     }
 
+    run(command, parameters = []){
+        return new Promise((resolve, reject) => {
+            function callback(err){
+                if(err) reject(err)
+                else resolve({ lastID: this.lastID, changes: this.changes })
+            }
+            this.database.run(command, parameters, callback)
+        })
+    }
+
+    get(command, parameters = []){
+        return new Promise((resolve, reject) => {
+            function callback(err, row){
+                if(err) reject(err)
+                else resolve(row)
+            }
+            this.database.get(command, parameters, callback)
+        })
+    }
+    
+    all(command, parameters = []){
+        return new Promise((resolve, reject) => {
+            function callback(err, rows){
+                if(err) reject(err)
+                else resolve(rows)
+            }
+            this.database.all(command, parameters, callback)
+        })
+    }
+
     create_player(username){
         //this also doubles as the get_or_create, but it is fundamentally slower 
         //due to the guaranteed fail on insert of existing person
