@@ -208,49 +208,34 @@ class Database{
         })
     }
 
-    change_name(old_name, new_name){
-        return new Promise((resolve, reject) => {
-            if(typeof old_name !== "string" || typeof new_name !== "string"){
-                reject("change_name: all parametres must be strings")
-                return
-            }
-            const success = (err) => {
-                if (err) reject(err)
-                else resolve()
-            }
-            old_name = old_name.toLowerCase()
-            const new_username = new_name.toLowerCase()
-            this.conn.run(`
-                UPDATE player
-                SET username = ?,
-                truename = ?
-                WHERE username = ?
-            `, [new_username, new_name, old_name], success)
-        })
+    async change_name(old_name, new_name){
+        if(typeof old_name !== "string" || typeof new_name !== "string"){
+            throw "change_name: all parametres must be strings"
+        }
+        old_name = old_name.toLowerCase()
+        const new_username = new_name.toLowerCase()
+        return this.run(`
+            UPDATE player
+            SET username = ?,
+            truename = ?
+            WHERE username = ?
+        `, [new_username, new_name, old_name])
     }
 
-    get_player_id(username){
-        return new Promise((resolve, reject) => {
-            if(typeof username !== "string"){
-                reject("get_player_id: username must be string")
-                return
-            }
-            const success = (err, row) => {
-                if(err) reject(err)
-                else resolve(row?row.player_id:null)
-            }
-            this.conn.get(`SELECT player_id FROM player WHERE username=(?)`, [username.toLowerCase()], success)
-
-        })
+    async get_player_id(username){
+        if(typeof username !== "string"){
+            throw "get_player_id: username must be string"
+        }
+        const row = await this.get(`SELECT player_id FROM player WHERE username=(?)`, [username.toLowerCase()])
+        return row?.player_id ?? null
     }
 
     async get_player_id_strict(username){
         const player_id = await this.get_player_id(username)
         if(player_id === null){
             throw Error(`get_player_id_strict: ${username} is not a known player.`)
-        }else{
-            return player_id
         }
+        return player_id
     }
 
     get_or_create_player_id(username){
@@ -265,24 +250,14 @@ class Database{
         })
     }
 
-    get_player_username(player_id){
-        return new Promise((resolve, reject) => {
-            const success = (err, row) => {
-                if (err) reject(err)
-                else resolve(row?row.username:null)
-            }
-            this.conn.get(`SELECT username FROM player WHERE player_id=(?)`, [player_id], success)
-        })
+    async get_player_username(player_id){
+        const row = await this.get(`SELECT username FROM player WHERE player_id=(?)`, [player_id])
+        return row?.username ?? null
     }
 
-    get_player_truename(player_id){
-        return new Promise((resolve, reject) => {
-            const success = (err, row) => {
-                if(err) reject(err)
-                else resolve(row?row.truename:null)
-            }
-            this.conn.get(`SELECT truename FROM player WHERE player_id=(?)`, [player_id], success)
-        })
+    async get_player_truename(player_id){
+        const row = await this.get(`SELECT truename FROM player WHERE player_id=(?)`, [player_id])
+        return row?.truename ?? null
     }
 
     get_player(username){
@@ -303,103 +278,55 @@ class Database{
         })
     }
 
-    get_player_level(player_id){
-        return new Promise((resolve, reject) => {
-            const success = (err, row) => {
-                if (err) reject(err)
-                resolve(row?row.level:null)
-            }
-            this.conn.get(`SELECT level FROM level WHERE player_id=(?)`, [player_id], success)
-        })
+    async get_player_level(player_id){
+        const row = await this.get(`SELECT level FROM level WHERE player_id=(?)`, [player_id])
+        return row?.level ?? null
+    }
+
+    async update_player_level(player_id, new_level){
+        //creates or updates, but since in SQL null is a valid value I call the function update
+        try{
+            return await this.run("INSERT INTO level (player_id, level) VALUES(?,?)", [player_id, new_level])
+        }catch{ //the error value is not used
+            return this.run("UPDATE level SET level = ? WHERE player_id = ?", [new_level, player_id])
+        }
+    }
         
+
+    async get_player_avatar(player_id){
+        const row = await this.get(`SELECT avatar FROM avatar WHERE player_id=(?)`, [player_id])
+        return row?.avatar ? JSON.parse(row.avatar) : null
     }
 
-    update_player_level(player_id, new_level){
-        return new Promise((resolve, reject) =>{
-            const success = (err) => {
-                if (err) reject(err)
-                else resolve()
-            }
-            const step2 = (err) => {
-                if(err){
-                    this.conn.run("UPDATE level SET level = ? WHERE player_id = ?", [new_level, player_id], success)
-                }else{
-                    resolve()
-                }
-            }
-            this.conn.run("INSERT INTO level (player_id, level) VALUES(?,?)", [player_id, new_level], step2)
-        })
+    async update_player_avatar(player_id, new_avatar){
+        new_avatar = JSON.stringify(new_avatar)
+        try{
+            return await this.run("INSERT INTO avatar (player_id, avatar) VALUES(?,?)", [player_id, new_avatar])
+        }catch{
+            return this.run("UPDATE avatar SET avatar = ? WHERE player_id = ?", [new_avatar, player_id])
+        }
     }
 
-    get_player_avatar(player_id){
-        return new Promise((resolve, reject) =>{
-            const success = (err, row) => {
-                if (err) reject(err)
-                else resolve(row?JSON.parse(row.avatar):null)
-            }
-            this.conn.get(`SELECT avatar FROM avatar WHERE player_id=(?)`, [player_id], success)
-        })
+    async save_message(username, message){
+        const player_id = await this.get_or_create_player_id(username) //get_or_create to make sure all messages are saved, even if the player somehow isn't registered yet
+        return this.run(`
+            INSERT INTO message (player_id, time, content) VALUES(
+            (?),
+            DATETIME('now'),
+            (?)
+        )`, [player_id, message])
     }
 
-    update_player_avatar(player_id, new_avatar){
-        return new Promise((resolve, reject) =>{ 
-            new_avatar = JSON.stringify(new_avatar)
-            const success = (err) => {
-                if (err) reject(err)
-                else resolve()
-            }
-            const step2 = (err) => {
-                if(err){
-                    this.conn.run("UPDATE avatar SET avatar = ? WHERE player_id = ?", [new_avatar, player_id], success)
-                }else{
-                    resolve()
-                }
-            }
-            this.conn.run("INSERT INTO avatar (player_id, avatar) VALUES(?,?)", [player_id, new_avatar], step2)
-        })
-    }
-
-    save_message(username, message){
-        return new Promise((resolve, reject) =>{ 
-            this.get_or_create_player_id(username).then(player_id => { //get_or_create to make sure all messages are saved, even if the player somehow isn't registered yet
-                const success = (err) => {
-                    if (err) reject(err)
-                    else resolve()
-                }
-                this.conn.run(`
-                    INSERT INTO message (player_id, time, content) VALUES(
-                    (?),
-                    DATETIME('now'),
-                    (?)
-                )`, [player_id, message], success)
-            })
-        })
-    }
-
-    ban_player(username, reason=null, banner=null){   
-        return new Promise((resolve, reject) =>{ 
-            this.get_or_create_player_id(username).then(player_id => {
-                const success = (banner_id) => {
-                    const success = (err) => {
-                        if (err) reject(err)
-                        else resolve()
-                    }
-                    this.conn.run(`
-                        INSERT INTO banned (player_id, reason, banner_id, time) VALUES(
-                        (?),
-                        (?),
-                        (?),
-                        DATETIME('now')
-                    )`, [player_id, reason, banner_id], success)
-                }
-                if(banner){
-                    this.get_or_create_player_id(banner).then(id => {success(id)})
-                }else{
-                    success(0)
-                }
-            })
-            
-        })
+    async ban_player(username, reason=null, banner=null){
+        const player_id = await this.get_or_create_player_id(username)
+        const banner_id = banner ? await this.get_or_create_player_id(banner) : 0
+        return this.run(`
+            INSERT INTO banned (player_id, reason, banner_id, time) VALUES(
+            (?),
+            (?),
+            (?),
+            DATETIME('now')
+        )`, [player_id, reason, banner_id])
     }
 
     unban_player(username){
