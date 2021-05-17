@@ -190,22 +190,20 @@ class Database{
         })
     }
 
-    create_player(username){
+    async create_player(username){
         //this also doubles as the get_or_create, but it is fundamentally slower 
         //due to the guaranteed fail on insert of existing person
-        return new Promise((resolve, reject) => {
-            if(typeof username !== "string"){
-                reject("create_player: username must be string")
-                return
-            }
-            const success = (err) => {//err is ignored
-                this.get_player_id(username).then(id => {resolve(id)}).catch(err => {reject("create_player->" + err)})
-            }
-            this.conn.run(`INSERT INTO player (username, truename) VALUES(
+        if(typeof username !== "string"){
+            throw "create_player: username must be string"
+        }
+        try{
+            await this.run(`INSERT INTO player (username, truename) VALUES(
             (?),
             ?
-            )`, [username.toLowerCase(), username], success)
-        })
+            )`, [username.toLowerCase(), username])
+        }finally{
+            return this.get_player_id(username)
+        }
     }
 
     async change_name(old_name, new_name){
@@ -238,16 +236,13 @@ class Database{
         return player_id
     }
 
-    get_or_create_player_id(username){
-        return new Promise((resolve, reject) => {
-            this.get_player_id(username).then((player_id) => {
-                if(player_id){
-                    resolve(player_id)
-                }else{
-                    this.create_player(username).then(id => { resolve(id) }).catch(err => { reject(err) })
-                }
-            }).catch(err => { reject("get_or_create_player_id->" + err) })
-        })
+    async get_or_create_player_id(username){
+        const player_id = await this.get_player_id(username)
+        if(player_id){
+            return player_id
+        }else{
+            return this.create_player(username)
+        }
     }
 
     async get_player_username(player_id){
@@ -260,22 +255,15 @@ class Database{
         return row?.truename ?? null
     }
 
-    get_player(username){
-        return new Promise((resolve, reject) => {
-            this.get_player_id(username).then(player_id => {
-                if(!player_id){
-                    resolve({player_id:null, level:null, avatar:null, banned:null})
-                }else{
-                    this.is_banned(username).then(banned => {
-                        this.get_player_avatar(player_id).then(avatar => {
-                            this.get_player_level(player_id).then(level => {
-                                resolve({player_id, banned, level, avatar})
-                            })
-                        })
-                    })
-                }
-            }).catch(err => {reject("get_player->" + err)})
-        })
+    async get_player(username){
+        const player_id = await this.get_player_id(username)
+        if(!player_id){
+            resolve({player_id:null, level:null, avatar:null, banned:null})
+        }
+        const banned = await this.is_banned(username)
+        const avatar = await this.get_player_avatar(player_id)
+        const level = await this.get_player_level(player_id)
+        return {player_id, banned, level, avatar}
     }
 
     async get_player_level(player_id){
@@ -329,126 +317,77 @@ class Database{
         )`, [player_id, reason, banner_id])
     }
 
-    unban_player(username){
-        return new Promise((resolve, reject) =>{
-            if (typeof username !== "string"){
-                reject("unban_player: username has to be string")
-                return
-            }
-            const success = (err) => {
-                if (err) reject(err)
-                else resolve()
-            }
-            this.conn.run(`
-                DELETE FROM banned
-                WHERE player_id = (SELECT player_id FROM player where username = ?)
-            `, [username.toLowerCase()], success)
-        })
+    async unban_player(username){
+        if (typeof username !== "string"){
+            throw "unban_player: username has to be string"
+        }
+        return this.run(`
+            DELETE FROM banned
+            WHERE player_id = (SELECT player_id FROM player where username = ?)
+        `, [username.toLowerCase()])
     }
 
-    is_banned(username){
-        return new Promise((resolve, reject) =>{ 
-            if (typeof username !== "string"){
-                reject("is_banned: username has to be string")
-                return
-            }
-            const success = (err, row) => {
-                if (err) reject(err)
-                else resolve(row?true:false)
-            }
-            this.conn.get(`
-                SELECT player_id FROM banned
-                NATURAL JOIN player
-                WHERE username = ?
-            `, [username.toLowerCase()], success)
-        })
-    }
-
-    ban_readable(username=null, banner=null){
-        return new Promise((resolve, reject) =>{ 
-            const success = (err, rows) => {
-                if (err) reject(err)
-                else resolve(rows)
-            }
-            let query = `
-            SELECT p.username as player_username, reason, p2.username as banner_username, time
-            FROM banned AS b
-            NATURAL JOIN player AS p
-            JOIN player AS p2
-                ON p2.player_id = b.banner
-            `
-            if (username){
-                if (banner){
-                    query += "WHERE p.username = ? AND p2.username = ?;"
-                    this.conn.all(query, [username, banner], success)
-                } else{
-                    query += "WHERE p.username = ?;"
-                    this.conn.all(query, [username], success)
-                }
-            }else if (banner){
-                query += "WHERE p2.username = ?;"
-                this.conn.all(query, [banner], success)
-            }else{
-                this.conn.all(query+";", [], success)
-            }
-        })
-    }
-
-    add_administrator(username, source=null){
-        return new Promise((resolve, reject) => { 
-            const execute = (player_id, source_id) => {
-                const success = (err) => {
-                    if (err) reject(err)  // this probably means the administrator already exists
-                    else resolve()
-                }
-                this.conn.run(`INSERT INTO administrator (player_id, source) VALUES(
-                    ?,
-                    ?
-                    )`, [player_id, source_id], success)
-            }
-            this.get_or_create_player_id(username).then(player_id => {
-                this.get_player_id(source).then(source_id => {
-                    execute(player_id, source_id)
-                }).catch(() => {
-                    execute(player_id, 0)
-                })
-            })
-        
-        })
-    }
-
-    remove_administrator(username){
-        return new Promise((resolve, reject) =>{ 
-            if (typeof username !== "string"){
-                reject("remove_administrator: username has to be string")
-                return
-            }
-            const success = (err) => {
-                if (err) reject(err)
-                else resolve()
-            }
-            this.conn.run(`DELETE FROM administrator
-            WHERE player_id = (SELECT player_id FROM player where username = ?)`, [username.toLowerCase()], success)
-        })
-    }
-
-    is_administrator(username){
-        return new Promise((resolve, reject) =>{
-            if (typeof username !== "string"){
-                reject("is_administrator: username has to be string")
-                return
-            } 
-            const success = (err, row) => {
-                if (err) reject(err)
-                else resolve(!!row)//!! is an idiom for is not false, it's less wordy than Boolean()
-            }
-            this.conn.get(` 
-            SELECT *
-            FROM administrator
+    async is_banned(username){
+        if (typeof username !== "string"){
+            throw "is_banned: username has to be string"
+        }
+        const row = await this.get(`
+            SELECT player_id FROM banned
             NATURAL JOIN player
-            WHERE username = ?`, [username.toLowerCase()], success)
-        
-        })
+            WHERE username = ?
+        `, [username.toLowerCase()])
+        return Boolean(row)
+    }
+
+    async ban_readable($username=null, $banner=null){
+        let query = `
+        SELECT p.username as player_username, reason, p2.username as banner_username, time
+        FROM banned AS b
+        NATURAL JOIN player AS p
+        JOIN player AS p2
+            ON p2.player_id = b.banner
+        `
+        if ($username){
+            if ($banner){
+                query += "WHERE p.username = $username AND p2.username = $banner;"
+            } else{
+                query += "WHERE p.username = $username;"
+            }
+        }else if ($banner){
+            query += "WHERE p2.username = $banner;"
+        }
+        return this.all(query, {$username, $banner})
+    }
+
+    async add_administrator(username, source=null){
+        const player_id = await this.get_or_create_player_id(username)
+        const source_id = source === null ? 0 : await this.get_player_id(source)
+        return this.run(`INSERT INTO administrator (player_id, source) VALUES(
+            ?,
+            ?
+            )`, [player_id, source_id])
+    }
+
+    async remove_administrator(username){
+        if (typeof username !== "string"){
+            throw "remove_administrator: username has to be string"
+        }
+        return this.run(`
+        DELETE FROM administrator
+        WHERE player_id = (SELECT player_id FROM player where username = ?)
+        `, [username.toLowerCase()])
+    }
+
+    async is_administrator(username){
+        if (typeof username !== "string"){
+            throw "is_administrator: username has to be string"
+        }
+        const row = await this.get(` 
+        SELECT *
+        FROM administrator
+        NATURAL JOIN player
+        WHERE username = ?`, [username.toLowerCase()])
+        return Boolean(row)
     }
 
     add_moderator(username, source=null){
