@@ -166,7 +166,7 @@ class Database{
                 if(err) reject(err)
                 else resolve({ lastID: this.lastID, changes: this.changes })
             }
-            this.database.run(command, parameters, callback)
+            this.conn.run(command, parameters, callback)
         })
     }
 
@@ -176,7 +176,7 @@ class Database{
                 if(err) reject(err)
                 else resolve(row)
             }
-            this.database.get(command, parameters, callback)
+            this.conn.get(command, parameters, callback)
         })
     }
     
@@ -186,7 +186,7 @@ class Database{
                 if(err) reject(err)
                 else resolve(rows)
             }
-            this.database.all(command, parameters, callback)
+            this.conn.all(command, parameters, callback)
         })
     }
 
