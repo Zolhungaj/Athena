@@ -374,22 +374,22 @@ class ChatMonitor {
             case "leaderboard":
             case "lb":
                 this.autoChat("leaderboardrangeinfo")
-                leaderboardrange ??= "monthly"
+                leaderboardrange = leaderboardrange ?? "monthly"
             case "leaderboardall":
             case "lba":
-                leaderboardrange ??= "alltime"
+                leaderboardrange = leaderboardrange ?? "alltime"
             case "leaderboardyearly":
             case "lby":
-                leaderboardrange ??= "yearly"
+                leaderboardrange = leaderboardrange ?? "yearly"
             case "leaderboardmonthly":
             case "lbm":
-                leaderboardrange ??= "monthly"
+                leaderboardrange = leaderboardrange ?? "monthly"
             case "leaderboardweekly":
             case "lbw":
-                leaderboardrange ??= "weekly"
+                leaderboardrange = leaderboardrange ?? "weekly"
             case "leaderboarddaily":
             case "lbd":
-                leaderboardrange ??= "daily"
+                leaderboardrange = leaderboardrange ?? "daily"
 
                 let leaderboardfunc = async () => {return []} //empty func so not everything dies if this doesn't get defined
                 let lowerLimit
