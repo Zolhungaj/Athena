@@ -1045,22 +1045,23 @@ class Database{
         })
     }
 
-    get_result_leaderboard = (top=10) =>{
+    get_result_leaderboard = ($top=10, $lowerLimit='1970-01-01 00:00:00', $upperLimit='9999-12-31 23:59:59') =>{
         return new Promise((resolve, reject) => {
             const success = (err, rows) => {
                 if (err) reject(err)
                 else resolve(rows)
             }
             this.conn.all(`
-                SELECT player_id, truename, result, MIN(time) as time, COUNT(*) as count
+                SELECT player_id, truename, result, MIN(g.time) as time, COUNT(*) as count
                 FROM player p
                 NATURAL JOIN gameplayer
-                NATURAL JOIN game
+                NATURAL JOIN game g
+                WHERE g.time >= $lowerLimit AND g.time <= $upperLimit
                 GROUP BY player_id, result
-                HAVING player_id NOT IN (SELECT player_id FROM banned) AND result = (SELECT MAX(result) from gameplayer gp where gp.player_id = p.player_id)
+                HAVING player_id NOT IN (SELECT player_id FROM banned) AND result = (SELECT MAX(result) FROM gameplayer gp NATURAL JOIN game g2 WHERE gp.player_id = p.player_id AND g2.time >= $lowerLimit AND g2.time <= $upperLimit)
                 ORDER BY result DESC, count DESC, time ASC
-                LIMIT ?
-            `, [top], success)
+                LIMIT $top
+            `, {$top, $lowerLimit, $upperLimit}, success)
         })
     }
     
@@ -1085,7 +1086,7 @@ class Database{
     }
 
     
-    get_result_leaderboard_speedrun = (top=10) =>{
+    get_result_leaderboard_speedrun = ($top=10, $lowerLimit='1970-01-01 00:00:00', $upperLimit='9999-12-31 23:59:59') =>{
         return new Promise((resolve, reject) => {
             const success = (err, rows) => {
                 if (err) reject(err)
@@ -1095,14 +1096,15 @@ class Database{
                 SELECT player_id, truename, result || 'p ' || correct_time || 'ms' as speedrun, MIN(time) as time, COUNT(*) as count
                 FROM player p
                 NATURAL JOIN gameplayer gp1
-                NATURAL JOIN game
+                NATURAL JOIN game g
+                WHERE g.time >= $lowerLimit AND g.time <= $upperLimit
                 GROUP BY player_id, result, correct_time
                 HAVING player_id NOT IN (SELECT player_id FROM banned) 
-                    AND result = (SELECT MAX(result) from gameplayer gp where gp.player_id = p.player_id AND gp.correct_time is not null)
-                    AND correct_time = (SELECT MIN(correct_time) from gameplayer gp where gp.player_id = p.player_id AND gp.result = gp1.result)
+                    AND result = (SELECT MAX(result) FROM gameplayer gp NATURAL JOIN game g2 WHERE gp.player_id = p.player_id AND gp.correct_time IS NOT NULL AND g2.time >= $lowerLimit AND g2.time <= $upperLimit)
+                    AND correct_time = (SELECT MIN(correct_time) FROM gameplayer gp NATURAL JOIN game g2 WHERE gp.player_id = p.player_id AND gp.result = gp1.result AND g2.time >= $lowerLimit AND g2.time <= $upperLimit)
                 ORDER BY result DESC, correct_time ASC, count DESC, time ASC
-                LIMIT ?
-            `, [top], success)
+                LIMIT $top
+            `, {$top, $lowerLimit, $upperLimit}, success)
         })
     }
 
