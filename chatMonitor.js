@@ -240,6 +240,7 @@ class ChatMonitor {
 
     handleCommand = async (sender, command, senderNickname) => {
         const parts = command.split(" ")
+        let leaderboardrange = null
 
         switch(parts[0].toLowerCase()) {
             case "0\\":
@@ -371,7 +372,61 @@ class ChatMonitor {
                 }
                 break
             case "leaderboard":
+            case "lb":
+                this.autoChat("leaderboardrangeinfo")
+                leaderboardrange ??= "monthly"
+            case "leaderboardall":
+            case "lba":
+                leaderboardrange ??= "alltime"
+            case "leaderboardyearly":
+            case "lby":
+                leaderboardrange ??= "yearly"
+            case "leaderboardmonthly":
+            case "lbm":
+                leaderboardrange ??= "monthly"
+            case "leaderboardweekly":
+            case "lbw":
+                leaderboardrange ??= "weekly"
+            case "leaderboarddaily":
+            case "lbd":
+                leaderboardrange ??= "daily"
+
                 let leaderboardfunc = async () => {return []} //empty func so not everything dies if this doesn't get defined
+                let lowerLimit
+                let upperLimit
+                const oneday = 24 * 60  *60 * 1000 //one day in milliseconds
+                const now = new Date(Date.now())
+                const year = now.getUTCFullYear().toString()
+                const month = (now.getUTCMonth + 1).toString().padStart(2, "0")
+                const day = now.getUTCDate().toString().padStart(2, "0")
+                const currentDayOfWeek = now.getUTCDay() == 0 ? 6 : now.getUTCDay() - 1 //by default sunday is day 0, that is wrong however, the calender week should start on Monday
+                const weekStart = new Date(now.getTime - (currentDayOfWeek * oneday)) //this is the monday of the current week UTC time
+                const weekEnd = new Date(weekStart.getTime() + oneday * 6) //this is the sunday of the current week UTC time
+                switch(leaderboardrange){
+                    case "alltime":
+                        lowerLimit = undefined
+                        upperLimit = undefined
+                        break
+                    case "yearly":
+                        lowerLimit = `${year}` //text comparison, so start of year can be expressed as such
+                        upperLimit = `${year}-12-31 23:59:59`
+                        break
+                    case "monthly":
+                        lowerLimit = `${year}-${month}`
+                        upperLimit = `${year}-${month}-31 23:59:59` //this is a text comparison, so doesn't matter if there are fewer days in the month
+                        break
+                    case "daily":
+                        lowerLimit = `${year}-${month}-${day}`
+                        upperLimit = `${year}-${month}-${day} 23:59:59`
+                        break
+                    case "weekly":
+                        lowerLimit = `${weekStart.getUTCFullYear()}-${weekStart.getUTCMonth().toString().padStart(2, "0")}-${weekStart.getUTCDate().toString().padStart(2, "0")}`
+                        upperLimit = `${weekEnd.getUTCFullYear()}-${weekEnd.getUTCMonth().toString().padStart(2, "0")}-${weekEnd.getUTCDate().toString().padStart(2, "0")} 23:59:59`
+                        break
+                    default:
+                        this.chat("error, unknown leaderboardrange")
+                        break
+                }
                 switch(this.leaderboardType){
                     case "rating": //this is the elo rating
                         leaderboardfunc = this.db.get_elo_leaderboard
@@ -394,15 +449,15 @@ class ChatMonitor {
                         if(isNaN(parts[1]))
                             this.autoChat("nan", [parts[1]])
                         else
-                            rows = await leaderboardfunc(Number(parts[1]))
+                            rows = await leaderboardfunc(Number(parts[1]), lowerLimit, upperLimit)
                     }
                     else
                         this.autoChat("permission_denied", [senderNickname])
                 }else
-                    rows = await leaderboardfunc()
+                    rows = await leaderboardfunc(undefined, lowerLimit, upperLimit)
                 
                 if(rows){
-                    this.autoChat("leaderboard", [rows.length])
+                    this.autoChat("leaderboard"+leaderboardrange, [rows.length])
                     for(let i = 0; i < rows.length; i++){
                         const pos = i + 1
                         const truename = rows[i].truename
