@@ -394,13 +394,13 @@ class ChatMonitor {
                 let leaderboardfunc = async () => {return []} //empty func so not everything dies if this doesn't get defined
                 let lowerLimit
                 let upperLimit
-                const oneday = 24 * 60  *60 * 1000 //one day in milliseconds
+                const oneday = 24 * 60 * 60 * 1000 //one day in milliseconds
                 const now = new Date(Date.now())
                 const year = now.getUTCFullYear().toString()
-                const month = (now.getUTCMonth + 1).toString().padStart(2, "0")
+                const month = (now.getUTCMonth() + 1).toString().padStart(2, "0")
                 const day = now.getUTCDate().toString().padStart(2, "0")
                 const currentDayOfWeek = now.getUTCDay() == 0 ? 6 : now.getUTCDay() - 1 //by default sunday is day 0, that is wrong however, the calender week should start on Monday
-                const weekStart = new Date(now.getTime - (currentDayOfWeek * oneday)) //this is the monday of the current week UTC time
+                const weekStart = new Date(now.getTime() - (currentDayOfWeek * oneday)) //this is the monday of the current week UTC time
                 const weekEnd = new Date(weekStart.getTime() + oneday * 6) //this is the sunday of the current week UTC time
                 switch(leaderboardrange){
                     case "alltime":
@@ -420,13 +420,15 @@ class ChatMonitor {
                         upperLimit = `${year}-${month}-${day} 23:59:59`
                         break
                     case "weekly":
-                        lowerLimit = `${weekStart.getUTCFullYear()}-${weekStart.getUTCMonth().toString().padStart(2, "0")}-${weekStart.getUTCDate().toString().padStart(2, "0")}`
-                        upperLimit = `${weekEnd.getUTCFullYear()}-${weekEnd.getUTCMonth().toString().padStart(2, "0")}-${weekEnd.getUTCDate().toString().padStart(2, "0")} 23:59:59`
+                        lowerLimit = `${weekStart.getUTCFullYear()}-${(weekStart.getUTCMonth()+1).toString().padStart(2, "0")}-${weekStart.getUTCDate().toString().padStart(2, "0")}`
+                        upperLimit = `${weekEnd.getUTCFullYear()}-${(weekEnd.getUTCMonth()+1).toString().padStart(2, "0")}-${weekEnd.getUTCDate().toString().padStart(2, "0")} 23:59:59`
                         break
                     default:
                         this.chat("error, unknown leaderboardrange")
                         break
                 }
+                console.log(lowerLimit, upperLimit)
+                console.log()
                 switch(this.leaderboardType){
                     case "rating": //this is the elo rating
                         leaderboardfunc = this.db.get_elo_leaderboard
