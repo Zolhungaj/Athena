@@ -128,6 +128,25 @@ class ChatMonitor {
             })
     }
 
+    banOriginalName(originalName, reason, kicker="<System>"){
+        //this one bans a player based on original name, will not work while the player is ingame.
+        //intended for use on players with unknown nicknames/deleted accounts
+
+        this.db.get_player_id(originalName)
+            .then(player_id => {
+                if(!player_id){
+                    this.autoChat("error", [kicker, "unknown player"])
+                    return
+                }
+                this.db.get_player_truename(player_id)
+                    .then(truename => {
+                        this.db.ban_player(truename, reason, kicker)
+                            .catch((err) => {this.autoChat("error", [kicker, err])})
+                        this.grudges.push({truename, reason, kicker})
+                    })
+            })
+    }
+
     unban(nickname, sender) {
         this.nameResolver.getOriginalName(nickname)
             .then(({name, originalName}) => {
@@ -536,6 +555,12 @@ class ChatMonitor {
             case "ban":
                 if(await this.isAdmin(sender)){
                     this.ban(parts[1], parts.slice(2).join(" "), sender)
+                }else
+                    this.autoChat("permission_denied", [senderNickname])
+                break
+            case "bantrue":
+                if(await this.isAdmin(sender)){
+                    this.banOriginalName(parts[1], parts.slice(2).join(" "), sender)
                 }else
                     this.autoChat("permission_denied", [senderNickname])
                 break

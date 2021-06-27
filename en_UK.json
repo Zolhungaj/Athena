@@ -114,7 +114,7 @@
     "help_addadmin": [ "Usage: addadmin [username]| Adds a new admin to the bot." ],
     "help_addmoderator": [ "Usage: addmoderator [username]| Adds a new moderator to the bot." ],
     "help_admin": [ "Admin commands: stop, addadmin, addmoderator, ban, unban, say" ],
-    "help_ban": [ "Usage: ban [username] <reason>| Kicks the user and kicks them upon joining any bot sharing the same database." ],
+    "help_ban": [ "Usage: ban [username] <reason>| Kicks the user and kicks them upon joining any bot sharing the same database. Use bantrue if the player is deleted or has an unknown nickname" ],
     "help_elo": [ "Usage: elo <player>| Prints your elo rating, moderators may specify another player instead." ],
     "help_forceevent": [ "Usage: forceevent| Sets the timer to 1, resulting an immediate activation of time activated events." ],
     "help_friend": [ "Makes the bot send a friend request, necessary for DMs." ],
