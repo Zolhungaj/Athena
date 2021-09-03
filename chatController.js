@@ -300,7 +300,7 @@ class ChatController {
             }
         }else if(wasSpectator){
             if(Math.random()*100 < this.chattiness/16){
-                this.autoChat("comment_specator", [name])
+                this.autoChat("comment_spectator", [name])
             }
         }else {
             this.autoChat("greeting_spectator", [name])

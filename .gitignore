@@ -105,3 +105,4 @@ dist
 
 *data.json
 *.db
+*.sqlite
