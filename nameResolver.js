@@ -7,6 +7,7 @@ class NameResolver {
         this.nameToOriginalNameMap = {}
         this.profileLock = 0
         this.lockoutTime = 1000
+        this.timeoutTime = 5000 //server is known to be particularly slow with guests
 
         this.listeners = [socket.on(EVENTS.PLAYER_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName)),
             socket.on(EVENTS.SPECTATOR_NAME_CHANGE, ({oldName, newName}) => this.updateName(oldName, newName)),
@@ -57,7 +58,7 @@ class NameResolver {
                 timeOut = setTimeout(() => {
                     profileListener.destroy()
                     reject("timeout")
-                }, this.lockoutTime)
+                }, this.timeoutTime)
                 this.socket.social.profile.get(name) //it's not possible to await on this, despite what the examples might suggest
             })
         }

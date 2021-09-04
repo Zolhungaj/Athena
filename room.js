@@ -2,7 +2,7 @@ const {SocketWrapper, getToken, EVENTS, sleep} = require('./node/amq-api')
 const Player = require("./player").Player
 class Room {
     //this handles events that concern the room
-	constructor(socket, events, nameResolver, db, debug=true) {
+	constructor(socket, events, nameResolver, db, minLevel=0, maxLevel=0, debug=true) {
         this.players = {}
         this.activePlayers = {}
         this.spectators = {}
@@ -16,6 +16,12 @@ class Room {
         this.startBlocked = true
         this.db = db
         this.nameResolver = nameResolver
+
+        this.minLevel = Number(minLevel) // 0=guests can join, otherwise the player must have at least minLevel as level
+        this.maxLevel = Number(maxLevel) // 0=no limit, inclusive
+
+        this.levelWarnList = []
+        this.levelWarnLimit = 3
 
         this.lockQueue = []
         this.isLocked = 0
@@ -340,7 +346,43 @@ class Room {
         //                             backgroundHori //string/filename
         //                             backgroundVert //string/filename
         //                             outfitName     //string
+        if(this.debug){
+            console.log("playerJoined")
+            console.log({playerData, wasPlayer, wasSpectator})
+            console.log({minlevel: this.minLevel, maxLevel: this.maxLevel, level: playerData.level})
+        }
         await this.lock()
+        if(this.minLevel){
+            const guestMatcher = new RegExp("^Guest-\\d{5}$")
+            const isGuest = guestMatcher.test(playerData.name)
+            if(isGuest || playerData.level < this.minLevel){
+                this.levelWarnList.push(playerData.name)
+                const warningsReceived = this.levelWarnList.filter(entry => entry === playerData.name).length
+                if(warningsReceived >= this.levelWarnLimit){
+                    this.kick(playerData.name)
+                }else{
+                    this.forceToSpectator(playerData.name)
+                    this.autoChat(`warn_${isGuest? "guest" : "level_low"}`, [playerData.name, warningsReceived, this.levelWarnLimit, this.minLevel])
+                }
+                this.unlock()
+                return
+            }
+        }
+        if(this.maxLevel){
+            if(playerData.level > this.maxLevel){
+                this.levelWarnList.push(playerData.name)
+                const warningsReceived = this.levelWarnList.filter(entry => entry === playerData.name).length
+                if(warningsReceived >= this.levelWarnLimit){
+                    this.kick(playerData.name)
+                }else{
+                    this.forceToSpectator(playerData.name)
+                    this.autoChat(`warn_level_high`, [playerData.name, warningsReceived, this.levelWarnLimit, this.maxLevel])
+                }
+                this.unlock()
+                return
+            }
+        }
+
         this.nameResolver.getOriginalName(playerData.name).then(({name, originalName}) => {
             const player = new Player(name, originalName, playerData.level, playerData.avatar, playerData.ready, playerData.gamePlayerId)
             this.players[player.name] = player

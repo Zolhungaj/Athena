@@ -258,7 +258,7 @@ class Database{
     async get_player(username){
         const player_id = await this.get_player_id(username)
         if(!player_id){
-            resolve({player_id:null, level:null, avatar:null, banned:null})
+            return {player_id:null, level:null, avatar:null, banned:null}
         }
         const banned = await this.is_banned(username)
         const avatar = await this.get_player_avatar(player_id)

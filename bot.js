@@ -24,7 +24,7 @@ async function main() {
 
     for(let i = 0; i < fields.length; i++){
         const field = fields[i]
-        const bot = new Bot(field.username, field.password, field.database, JSON.parse(field.settings.replace(new RegExp("'", "g"), '"')), field.leaderboard, slaves, field.isSlave, true)
+        const bot = new Bot(field.username, field.password, field.database, JSON.parse(field.settings.replace(new RegExp("'", "g"), '"')), field.leaderboard, slaves, field.isSlave, field.minLevel, field.maxLevel, true)
         bots.push(bot)
         await bot.connect()
         if(field.isSlave.toLowerCase()==="true"){
@@ -36,7 +36,7 @@ async function main() {
 }
 
 class Bot{
-    constructor(username, password, database, settings, leaderboard="rating", slaves=[], isSlave=false, debug=true){
+    constructor(username, password, database, settings, leaderboard="rating", slaves=[], isSlave=false, minLevel=0, maxLevel=0, debug=true){
         this.username = username
         this.password = password
         this.database = database
@@ -45,6 +45,8 @@ class Bot{
         this.slaves = slaves
         this.isSlave = isSlave
         this.debug = debug
+        this.minLevel = minLevel
+        this.maxLevel = maxLevel
 
 
         this.events = new EventEmitter()
@@ -84,7 +86,7 @@ class Bot{
         const db = new Database(database)
         const theChat = new ChatController(this.socket, this.events, this.username, this.debug)
         theChat.start()
-        const theRoom = new Room(this.socket, this.events, theNameResolver, db)
+        const theRoom = new Room(this.socket, this.events, theNameResolver, db, this.minLevel, this.maxLevel, this.debug)
         const theGame = new Game(this.socket, this.events, db, leaderboard, this.debug)
         const theChatMonitor = new ChatMonitor(this.socket, this.events, db, theNameResolver, this.username, leaderboard)
         const theSocialManager = new SocialManager(this.socket, this.events, db)

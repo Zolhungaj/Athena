@@ -191,5 +191,8 @@
     "valour_negative": [ "&1 does not have valour" ],
     "valour_status": [ "&1 has valour level &2 given by &4, &5 underling(s). Current surplus to be given out: &3." ],
     "warning_clear_scores": [ "Warning this will clear all scores in the given time period (inclusive the start and end second). Type /confirm to confirm, /abort to abort" ],
+    "warn_guest": [ "@&1, guests are not allowed to play in this room. Warning &2 of &3" ],
+    "warn_level_low": [ "@&1, you are too low level to play in this room. Minimum level is &4. Warning &2 of &3" ],
+    "warn_level_high": [ "@&1, you are too high level to play in this room. Maximum level is &4. Warning &2 of &3" ],
     "you_answered": [ "You answered: &1"]
 }
