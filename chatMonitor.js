@@ -631,12 +631,10 @@ class ChatMonitor {
                     this.autoChat("permission_denied", [senderNickname])
                 break
             case "pause":
-                this.chat("disabled due to bug")
-                //this.socket.quiz.pause()
+                this.socket.quiz.pause()
                 break
             case "unpause":
-                this.chat("disabled due to bug")
-                //this.socket.quiz.unpause()
+                this.socket.quiz.unpause()
                 break
             case "clearscores":
                 if(await this.isAdmin(sender)){
