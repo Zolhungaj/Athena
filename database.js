@@ -1,5 +1,3 @@
-const { reject } = require("bluebird")
-
 const sqlite3 = require("sqlite3").verbose()
 
 //this was ported from the previous contest bot, it was originally in python
