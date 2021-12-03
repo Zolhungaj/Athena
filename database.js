@@ -125,6 +125,14 @@ class Database{
             artist TEXT,
             link TEXT
         );`)
+        c.run(`CREATE TABLE IF NOT EXISTS gamesong(
+            game_id INTEGER NOT NULL,
+            song_id INTEGER NOT NULL,
+            ordinal INTEGER NOT NULL,
+            PRIMARY KEY(game_id, ordinal),
+            FOREIGN KEY(game_id) REFERENCES game(game_id),
+            FOREIGN KEY(song_id) REFERENCES song(song_id)
+        );`)
         c.run(`CREATE VIEW IF NOT EXISTS valour_record AS
             WITH RECURSIVE record (level, player_id, referer_id) AS
                 (SELECT 0, v.player_id AS player_id, v.referer_id AS referer_id
