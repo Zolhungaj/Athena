@@ -147,6 +147,21 @@ class ChatMonitor {
             })
     }
 
+    unbanOriginalName(originalName, sender) {
+        this.db.get_player_id(originalName)
+            .then(player_id => {
+                if(!player_id){
+                    this.autoChat("error", [sender, "unknown player"])
+                    return
+                }
+                this.db.get_player_truename(player_id)
+                    .then(truename => {
+                        this.db.unban_player(truename).catch((err) => {this.autoChat("error", [sender, err])})
+                        this.grudges = this.grudges.filter(x => x.name !== truename)
+                    })
+            })
+    }
+
     unban(nickname, sender) {
         this.nameResolver.getOriginalName(nickname)
             .then(({name, originalName}) => {
@@ -464,7 +479,7 @@ class ChatMonitor {
                     default:
                         leaderboardfunc = async () => { this.autoChat("leaderboard_disabled"); return []}
                 }
-                let rows = []
+                let rows = null
                 if(parts[1]){
                     if(await this.isModerator(sender) || await this.isAdmin(sender)){
                         if(isNaN(parts[1]))
@@ -627,6 +642,12 @@ class ChatMonitor {
             case "unban":
                 if(await this.isAdmin(sender)){
                     this.unban(parts[1], sender)
+                }else
+                    this.autoChat("permission_denied", [senderNickname])
+                break
+            case "unbantrue":
+                if(await this.isAdmin(sender)){
+                    this.unbanOriginalName(parts[1], sender)
                 }else
                     this.autoChat("permission_denied", [senderNickname])
                 break
