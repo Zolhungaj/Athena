@@ -27,6 +27,7 @@ async function main() {
         const bot = new Bot(field.username, field.password, field.database, JSON.parse(field.settings.replace(new RegExp("'", "g"), '"')), field.leaderboard, slaves, field.isSlave, field.minLevel, field.maxLevel, true)
         bots.push(bot)
         await bot.connect()
+        await sleep(5000)
         if(field.isSlave.toLowerCase()==="true"){
             slaves.push(bot)
         }else{
