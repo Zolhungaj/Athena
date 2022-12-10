@@ -20,6 +20,6 @@
     "csv-parse": "^4.15.3",
     "request-promise": "^4.2.5",
     "socket.io-client": "2.4.0",
-    "sqlite3": "^5.0.2"
+    "sqlite3": "^5.1.2"
   }
 }
