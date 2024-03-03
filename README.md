@@ -1,4 +1,8 @@
-# Athena
+# Athena - Archived
+
+Replaced by [https://github.com/Zolhungaj/amq-contest-bot-java](a Java/Spring implementation).
+Does not work since AMQ upgraded to socket-io 4, this also only runs on an ancient version of node
+
 
 A bot running rooms for [Anime Music Quiz](https://animemusicquiz.com).
 
